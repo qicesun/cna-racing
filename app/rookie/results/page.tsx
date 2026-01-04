@@ -16,7 +16,7 @@ type IndexEntry = {
     date?: string;
     track?: string; // 优先用 index 的
     layout?: string;
-    file: string; // "/rookie/results/81610301.json"
+    file: string; // "/rookie/results/preseason_81610301.json"
     cover?: string; // "/rookie/covers/navarra.png"
 };
 
@@ -160,13 +160,6 @@ export default async function RookieResultsListPage() {
                                     ) : (
                                         <div className="absolute inset-0 bg-zinc-800" />
                                     )}
-
-                                    <div className="absolute inset-0 bg-black/20" />
-                                    <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.35),rgba(0,0,0,0.10)_45%,rgba(0,0,0,0.12))]" />
-
-                                    <div className="absolute left-6 top-6 text-[11px] tracking-widest text-white/70">
-                                        Hosted iRacing
-                                    </div>
                                 </div>
 
                                 {/* Middle info */}

@@ -16,7 +16,7 @@ type IndexEntry = {
     date?: string;
     track?: string; // ✅ 这里写了就优先用
     layout?: string;
-    file: string; // "/gt3open/results/81610301.json"
+    file: string; // "/gt3open/results/preseason_81610301.json"
     cover?: string; // "/gt3open/covers/spa.png"
 };
 
@@ -164,14 +164,6 @@ export default async function GT3ResultsListPage() {
                                     ) : (
                                         <div className="absolute inset-0 bg-zinc-800" />
                                     )}
-
-                                    {/* 轻遮罩：保证字清晰但不压死图 */}
-                                    <div className="absolute inset-0 bg-black/20" />
-                                    <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.35),rgba(0,0,0,0.10)_45%,rgba(0,0,0,0.12))]" />
-
-                                    <div className="absolute left-6 top-6 text-[11px] tracking-widest text-white/70">
-                                        Hosted iRacing
-                                    </div>
                                 </div>
 
                                 {/* 2) 黑色信息区 */}

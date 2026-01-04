@@ -1,10 +1,18 @@
 [
   {
     "id": "82217041",
-    "title": "GT3 Open · Round 1 · Navarra",
+    "title": "Rookies · Round 1 · Navarra",
     "track": "Circuito de Navarra 纳瓦拉",
     "layout": "Grand Prix",
     "file": "/rookie/results/26s1r1_r_82217041.json",
     "cover": "/tracks/navarra.png"
+  },
+  {
+    "id": "82412693",
+    "title": "Rookies · Round 2 · Navarra",
+    "track": "Lime Rock Park 莱姆洛克",
+    "layout": "Grand Prix",
+    "file": "/rookie/results/26s1r2_r_82412693.json",
+    "cover": "/tracks/limerock.png"
   }
 ]

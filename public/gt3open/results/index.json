@@ -14,5 +14,13 @@
     "track": "SilverStone",
     "file": "/gt3open/results/26s1r2_82245347.json",
     "cover": "/tracks/silverstone.png"
+  },
+  {
+    "id": "82441935",
+    "title": "GT3 Open · Round 3 · Le Mans",
+    "date": "2026-01-03",
+    "track": "SilverStone",
+    "file": "/gt3open/results/26s1r3_82441935.json",
+    "cover": "/tracks/lemans.png"
   }
 ]
