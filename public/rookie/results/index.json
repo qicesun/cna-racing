@@ -14,5 +14,14 @@
     "layout": "Grand Prix",
     "file": "/rookie/results/26s1r2_r_82412693.json",
     "cover": "/tracks/limerock.png"
+  },
+  {
+    "id": "82603412",
+    "title": "Rookies · Round 3 · Summit Point Raceway",
+    "track": "Summit Point Raceway 萨米特角",
+    "layout": "Jefferson Circuit",
+    "file": "/rookie/results/26s1r3_r_82603412.json",
+    "cover": "/tracks/summit.png"
   }
+
 ]

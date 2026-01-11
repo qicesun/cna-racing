@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { rookie, RookieRace } from "@/data/rookie";
 
+/** 是否已结束（基于绝对时间点，UTC → 本地自动换算） */
 function isPast(r: RookieRace, now: Date) {
     return new Date(r.start).getTime() < now.getTime();
 }
 
-function formatStart(iso: string) {
+/** 按访问者「本地时区」格式化显示 */
+function formatStartLocal(iso: string) {
     const d = new Date(iso);
+
     return d.toLocaleString(undefined, {
         weekday: "short",
         year: "numeric",
@@ -14,6 +17,7 @@ function formatStart(iso: string) {
         day: "2-digit",
         hour: "2-digit",
         minute: "2-digit",
+        hour12: true, // 强制 12 小时制（11:00 PM）
     });
 }
 
@@ -22,7 +26,10 @@ export default function RookieSchedulePage() {
 
     const races = rookie.races
         .slice()
-        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+        .sort(
+            (a, b) =>
+                new Date(a.start).getTime() - new Date(b.start).getTime()
+        );
 
     const nextRace = races.find((r) => !isPast(r, now)) ?? null;
 
@@ -38,7 +45,9 @@ export default function RookieSchedulePage() {
                         <h1 className="mt-2 text-3xl md:text-4xl font-semibold tracking-tight">
                             Schedule 赛程
                         </h1>
-                        <p className="mt-2 text-zinc-300">已结束变灰；下一场高亮。</p>
+                        <p className="mt-2 text-zinc-300">
+                            时间按访问者本地时区显示
+                        </p>
                     </div>
 
                     <Link
@@ -52,12 +61,14 @@ export default function RookieSchedulePage() {
                 {/* Next race */}
                 {nextRace && (
                     <div className="mt-8 rounded-2xl border border-red-500/40 bg-white/5 p-6">
-                        <div className="text-xs tracking-widest text-zinc-400">NEXT EVENT</div>
+                        <div className="text-xs tracking-widest text-zinc-400">
+                            NEXT EVENT
+                        </div>
                         <div className="mt-1 text-xl font-semibold">
                             R{nextRace.round} · {nextRace.track}
                         </div>
                         <div className="mt-2 text-sm text-zinc-300">
-                            {formatStart(nextRace.start)}
+                            {formatStartLocal(nextRace.start)}
                             {nextRace.format ? ` · ${nextRace.format}` : ""}
                             {nextRace.note ? ` · ${nextRace.note}` : ""}
                         </div>
@@ -88,9 +99,11 @@ export default function RookieSchedulePage() {
                                             <div className="text-xs tracking-widest text-zinc-400">
                                                 ROUND {r.round}
                                             </div>
-                                            <div className="mt-1 text-lg font-semibold">{r.track}</div>
+                                            <div className="mt-1 text-lg font-semibold">
+                                                {r.track}
+                                            </div>
                                             <div className="mt-2 text-sm text-zinc-300">
-                                                {formatStart(r.start)}
+                                                {formatStartLocal(r.start)}
                                                 {r.format ? ` · ${r.format}` : ""}
                                                 {r.note ? ` · ${r.note}` : ""}
                                             </div>
