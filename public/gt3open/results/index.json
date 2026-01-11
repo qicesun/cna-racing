@@ -22,5 +22,14 @@
     "track": "Le Mans",
     "file": "/gt3open/results/26s1r3_82441935.json",
     "cover": "/tracks/lemans.png"
+  },
+  {
+    "id": "82632541",
+    "title": "GT3 Open · Round 4 · SPA",
+    "date": "2026-01-10",
+    "track": "SPA",
+    "file": "/gt3open/results/26s1r4_82632541.json",
+    "cover": "/tracks/spa.png"
   }
+
 ]
