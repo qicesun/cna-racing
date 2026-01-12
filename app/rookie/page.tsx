@@ -33,7 +33,7 @@ export default function RookieOverviewPage() {
             <section className="relative overflow-hidden border-b border-white/10">
                 <div
                     className="absolute inset-0 bg-cover bg-[position:50%_70%]"
-                    style={{ backgroundImage: "url('/mx5.jpg')" }}
+                    style={{ backgroundImage: "url('/gr86.jpg')" }}
                 />
                 <div className="absolute inset-0 bg-black/40" />
                 <div className="absolute inset-0 opacity-35 [background:radial-gradient(70%_60%_at_50%_10%,rgba(255,255,255,0.22),transparent_60%)]" />
