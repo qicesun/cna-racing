@@ -22,6 +22,22 @@
     "layout": "Jefferson Circuit",
     "file": "/rookie/results/26s1r3_r_82603412.json",
     "cover": "/tracks/summit.png"
+  },
+  {
+    "id": "82792055",
+    "title": "Rookies · Round 4 · Tsukuba Circuit",
+    "track": "Tsukuba Circuit 筑波",
+    "layout": "2000 Full",
+    "file": "/rookie/results/26s1r4_r_82792055.json",
+    "cover": "/tracks/tsukuba.png"
+  },
+  {
+    "id": "82978107",
+    "title": "Rookies · Round 5 · Summit Point Raceway",
+    "track": "Summit Point Raceway 萨米特角",
+    "layout": "Summit Point Raceway",
+    "file": "/rookie/results/26s1r4_r_82978107.json",
+    "cover": "/tracks/summit.png"
   }
 
 ]

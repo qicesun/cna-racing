@@ -30,6 +30,22 @@
     "track": "SPA",
     "file": "/gt3open/results/26s1r4_82632541.json",
     "cover": "/tracks/spa.png"
+  },
+  {
+    "id": "82819305",
+    "title": "GT3 Open · Round 5 · Daytona",
+    "date": "2026-01-17",
+    "track": "Daytona",
+    "file": "/gt3open/results/26s1r5_82819305.json",
+    "cover": "/tracks/daytona.png"
+  },
+  {
+    "id": "83007142",
+    "title": "GT3 Open · Round 6 · Suzuka",
+    "date": "2026-01-24",
+    "track": "Suzuka",
+    "file": "/gt3open/results/26s1r6_83007142.json",
+    "cover": "/tracks/suzuka.png"
   }
 
 ]
