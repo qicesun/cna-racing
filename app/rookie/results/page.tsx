@@ -35,6 +35,8 @@ function normalizeCarName(name?: string) {
 const CAR_LOGO_MAP: { key: string; src: string; alt: string }[] = [
     { key: "mazda", src: "/cars/mazda.png", alt: "Mazda" },
     { key: "mx-5", src: "/cars/mazda.png", alt: "Mazda" },
+    { key: "GR86", src: "/cars/toyota.svg", alt: "Toyota" },
+    { key: "toyota", src: "/cars/toyota.svg", alt: "Toyota" },
 ];
 
 function getCarLogo(carName?: string) {
