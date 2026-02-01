@@ -226,12 +226,6 @@ export function TopNav() {
                                     >
                                         {authUser.iracingName}
                                     </Link>
-                                    <Link
-                                        href={`/logout?next=${encodeURIComponent(pathname ?? "/")}`}
-                                        className="hidden sm:inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
-                                    >
-                                        退出
-                                    </Link>
                                 </>
                             ) : (
                                 <Link
