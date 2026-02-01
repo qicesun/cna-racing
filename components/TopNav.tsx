@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import type { SessionUser } from "@/lib/auth/types";
+
 type SeriesKey = "gt3open" | "rookie" | "formula";
 
 type SeriesDef = {
@@ -19,6 +21,7 @@ export function TopNav() {
 
     const [wechatOpen, setWechatOpen] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [authUser, setAuthUser] = useState<SessionUser | null>(null);
 
     // ✅ Discord 真链接
     const DISCORD_URL = "https://discord.gg/J3PwH5n2by";
@@ -97,6 +100,27 @@ export function TopNav() {
         setMobileOpen(false);
     }, [pathname]);
 
+    // Fetch current login status from the server (cookie-based session).
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const res = await fetch("/api/me", { cache: "no-store" });
+                const data = res.ok ? ((await res.json()) as { user: SessionUser | null }) : null;
+                if (cancelled) return;
+                setAuthUser(data?.user ?? null);
+            } catch {
+                if (cancelled) return;
+                setAuthUser(null);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     return (
         <>
             <header className="sticky top-0 z-50 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
@@ -138,6 +162,17 @@ export function TopNav() {
                                 ].join(" ")}
                             >
                                 Drivers
+                            </Link>
+                            <Link
+                                href="/account"
+                                className={[
+                                    "rounded-xl px-3 py-2 text-sm font-semibold transition",
+                                    isActive("/account")
+                                        ? "text-white bg-white/10"
+                                        : "text-zinc-300 hover:text-white hover:bg-white/5",
+                                ].join(" ")}
+                            >
+                                Account
                             </Link>
 
                             {seriesList.map((s) => {
@@ -182,6 +217,31 @@ export function TopNav() {
 
                         {/* Right actions */}
                         <div className="flex items-center gap-2">
+                            {authUser ? (
+                                <>
+                                    <Link
+                                        href="/account"
+                                        className="hidden sm:inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
+                                        title={`Logged in as ${authUser.iracingName}`}
+                                    >
+                                        {authUser.iracingName}
+                                    </Link>
+                                    <Link
+                                        href={`/logout?next=${encodeURIComponent(pathname ?? "/")}`}
+                                        className="hidden sm:inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
+                                    >
+                                        退出
+                                    </Link>
+                                </>
+                            ) : (
+                                <Link
+                                    href={`/oauth/login?next=${encodeURIComponent(pathname ?? "/")}`}
+                                    className="hidden sm:inline-flex rounded-xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:opacity-90"
+                                >
+                                    iRacing 登录
+                                </Link>
+                            )}
+
                             <a
                                 href={DISCORD_URL}
                                 target="_blank"
@@ -260,6 +320,17 @@ export function TopNav() {
                                         ].join(" ")}
                                     >
                                         Drivers
+                                    </Link>
+                                    <Link
+                                        href="/account"
+                                        className={[
+                                            "mt-1 block rounded-xl px-3 py-2 text-sm font-semibold transition",
+                                            isActive("/account")
+                                                ? "bg-white/10 text-white"
+                                                : "text-zinc-300 hover:bg-white/5 hover:text-white",
+                                        ].join(" ")}
+                                    >
+                                        Account
                                     </Link>
 
                                     <div className="mt-2 text-[11px] tracking-widest text-zinc-400 px-3">
