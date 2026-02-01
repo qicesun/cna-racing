@@ -61,12 +61,12 @@ export default async function AccountPage({ searchParams }: Props) {
                                 </div>
                             </div>
 
-                            <Link
+                            <a
                                 href="/logout?next=/account"
                                 className="inline-flex w-fit rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
                             >
                                 退出登录
-                            </Link>
+                            </a>
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
