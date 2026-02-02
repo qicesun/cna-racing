@@ -66,9 +66,12 @@ export default async function EventPage({ params }: Props) {
                                     key={`${s.user.iracingCustId}`}
                                     className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
                                 >
-                                    <div className="font-semibold text-zinc-100">
+                                    <Link
+                                        href={`/drivers/${s.user.iracingCustId}`}
+                                        className="font-semibold text-zinc-100 hover:underline"
+                                    >
                                         {s.user.iracingName}
-                                    </div>
+                                    </Link>
                                     <div className="text-xs text-zinc-400 font-mono">
                                         {s.user.iracingCustId}
                                     </div>

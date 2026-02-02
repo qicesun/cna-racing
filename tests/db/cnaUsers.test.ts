@@ -19,6 +19,11 @@ function makeSupabaseClientMock() {
             return this;
         }
 
+        eq(column: string, value: any) {
+            calls.push({ table: this.table, op: "eq", column, value });
+            return this;
+        }
+
         order(column: string, opts: any) {
             calls.push({ table: this.table, op: "order", column, opts });
             return this;
@@ -46,7 +51,7 @@ vi.mock("@/lib/db/supabaseAdmin", () => ({
     getSupabaseAdminClient: () => getSupabaseAdminClient(),
 }));
 
-import { listCnaUsers, upsertCnaUser } from "@/lib/db/cnaUsers";
+import { getCnaUserByCustId, listCnaUsers, upsertCnaUser } from "@/lib/db/cnaUsers";
 
 describe("lib/db/cnaUsers", () => {
     it("upserts a CNA user with updated_at", async () => {
@@ -90,5 +95,24 @@ describe("lib/db/cnaUsers", () => {
         const limitCall = calls.find((c) => c.table === "cna_users" && c.op === "limit");
         expect(limitCall?.n).toBe(123);
     });
-});
 
+    it("gets a single user by cust id", async () => {
+        const { client, calls, responses } = makeSupabaseClientMock();
+        responses.list = {
+            error: null,
+            data: [{ iracing_cust_id: 15535, iracing_name: "John West", updated_at: "2026-02-02T00:00:00.000Z" }],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaUserByCustId(15535)).resolves.toEqual({
+            iracingCustId: 15535,
+            iracingName: "John West",
+            updatedAt: "2026-02-02T00:00:00.000Z",
+        });
+
+        const eqCall = calls.find((c) => c.table === "cna_users" && c.op === "eq");
+        expect(eqCall).toBeTruthy();
+        expect(eqCall.column).toBe("iracing_cust_id");
+        expect(eqCall.value).toBe(15535);
+    });
+});

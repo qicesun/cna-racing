@@ -1,6 +1,13 @@
 import Link from "next/link";
 
+import ProfileEditor from "@/components/ProfileEditor";
 import { getCurrentUser } from "@/lib/auth/currentUser";
+import { getCnaUserProfile } from "@/lib/db/cnaUserProfiles";
+import { getDriverStatsFromResultsByCustId } from "@/lib/drivers/stats";
+import type { EditableUserProfile } from "@/lib/user/profile";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -20,6 +27,42 @@ export default async function AccountPage({ searchParams }: Props) {
     const sp = await searchParams;
     const error = readParam(sp, "error");
     const errorDescription = readParam(sp, "error_description");
+
+    let profile: EditableUserProfile | null = null;
+    let stats: Awaited<ReturnType<typeof getDriverStatsFromResultsByCustId>> | null = null;
+
+    if (user) {
+        try {
+            const row = await getCnaUserProfile(user.iracingCustId);
+            profile = row
+                ? {
+                    nickname: row.nickname,
+                    discord: row.discord,
+                    bio: row.bio,
+                    preferredCar: row.preferredCar,
+                    carNumber: row.carNumber,
+                    links: row.links,
+                }
+                : null;
+        } catch {
+            profile = null;
+        }
+
+        try {
+            stats = await getDriverStatsFromResultsByCustId(user.iracingCustId);
+        } catch {
+            stats = null;
+        }
+    }
+
+    const initialProfile: EditableUserProfile = profile ?? {
+        nickname: null,
+        discord: null,
+        bio: null,
+        preferredCar: null,
+        carNumber: null,
+        links: [],
+    };
 
     return (
         <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -61,12 +104,35 @@ export default async function AccountPage({ searchParams }: Props) {
                                 </div>
                             </div>
 
-                            <a
-                                href="/logout?next=/account"
-                                className="inline-flex w-fit rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
-                            >
-                                退出登录
-                            </a>
+                            {stats && (
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-200">
+                                    <div className="text-xs tracking-widest text-zinc-400">CNA STATS</div>
+                                    <div className="mt-2 grid gap-1">
+                                        <div>积分: {stats.points}</div>
+                                        <div>参赛次数: {stats.starts}</div>
+                                        <div>iRating: {stats.irating ?? "—"}</div>
+                                        <div>SR: {stats.safetyRating ?? "—"}</div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="flex flex-wrap gap-2">
+                                <Link
+                                    href={`/drivers/${user.iracingCustId}`}
+                                    className="inline-flex w-fit rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
+                                >
+                                    查看我的公开主页
+                                </Link>
+
+                                <a
+                                    href="/logout?next=/account"
+                                    className="inline-flex w-fit rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
+                                >
+                                    退出登录
+                                </a>
+                            </div>
+
+                            <ProfileEditor initialProfile={initialProfile} />
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">

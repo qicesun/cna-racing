@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 export type DriverProfile = {
+    iracingCustId?: number | null;
     name: string;
     points: number;
     starts: number;
@@ -150,12 +152,21 @@ export default function DriversClient({ drivers }: DriversClientProps) {
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {filtered.map((driver) => (
                         <div
-                            key={driver.name}
+                            key={driver.iracingCustId ?? driver.name}
                             className="rounded-2xl border border-white/10 bg-zinc-900/60 p-5 shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <div className="text-lg font-semibold text-white">{driver.name}</div>
+                                    {driver.iracingCustId ? (
+                                        <Link
+                                            href={`/drivers/${driver.iracingCustId}`}
+                                            className="text-lg font-semibold text-white hover:underline"
+                                        >
+                                            {driver.name}
+                                        </Link>
+                                    ) : (
+                                        <div className="text-lg font-semibold text-white">{driver.name}</div>
+                                    )}
                                     <div className="mt-2 text-xs text-zinc-400">
                                         CNA 积分: {driver.points} · 参赛次数: {driver.starts}
                                     </div>
@@ -205,11 +216,17 @@ export default function DriversClient({ drivers }: DriversClientProps) {
                         <tbody>
                         {filtered.map((driver) => (
                             <tr
-                                key={driver.name}
+                                key={driver.iracingCustId ?? driver.name}
                                 className="border-b border-white/5 hover:bg-white/5 transition"
                             >
                                 <td className="px-4 py-3 font-semibold text-white">
-                                    {driver.name}
+                                    {driver.iracingCustId ? (
+                                        <Link href={`/drivers/${driver.iracingCustId}`} className="hover:underline">
+                                            {driver.name}
+                                        </Link>
+                                    ) : (
+                                        driver.name
+                                    )}
                                 </td>
 
                                 <td className="px-4 py-3 text-zinc-200 tabular-nums">

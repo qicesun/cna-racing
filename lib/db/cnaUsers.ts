@@ -55,3 +55,24 @@ export async function listCnaUsers(limit = 1000): Promise<CnaUser[]> {
         .filter((u: CnaUser | null): u is CnaUser => u !== null);
 }
 
+export async function getCnaUserByCustId(iracingCustId: number): Promise<CnaUser | null> {
+    const supabase = getSupabaseAdminClient();
+
+    const { data, error } = await supabase
+        .from(USERS_TABLE)
+        .select("iracing_cust_id, iracing_name, updated_at")
+        .eq("iracing_cust_id", iracingCustId)
+        .limit(1);
+
+    if (error) fail("Supabase get user failed", error);
+
+    const row = (data ?? [])[0];
+    if (!row) return null;
+
+    const custId = typeof row.iracing_cust_id === "number" ? row.iracing_cust_id : Number(row.iracing_cust_id);
+    const name = typeof row.iracing_name === "string" ? row.iracing_name : null;
+    const updatedAt = typeof row.updated_at === "string" ? row.updated_at : null;
+    if (!Number.isFinite(custId) || !name || !updatedAt) return null;
+
+    return { iracingCustId: custId, iracingName: name, updatedAt };
+}

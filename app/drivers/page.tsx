@@ -41,6 +41,7 @@ type LicenseEntry = {
 type LicenseMap = Record<string, LicenseEntry[]>;
 
 type DriverAccumulator = {
+    iracingCustId?: number | null;
     name: string;
     points: number;
     starts: number;
@@ -134,8 +135,10 @@ export default async function DriversPage() {
                 const license = custId ? selectSportsCarLicense(licenseMap?.[custId]) : null;
 
                 const current =
+                    (custIdNumber ? driversByCustId.get(custIdNumber) : null) ??
                     drivers.get(name) ??
                     ({
+                        iracingCustId: custIdNumber,
                         name,
                         points: 0,
                         starts: 0,
@@ -157,7 +160,8 @@ export default async function DriversPage() {
                     current.safetyRating = license.safety_rating ?? current.safetyRating ?? null;
                 }
 
-                if (custIdNumber && !driversByCustId.has(custIdNumber)) {
+                if (custIdNumber) {
+                    current.iracingCustId = custIdNumber;
                     driversByCustId.set(custIdNumber, current);
                 }
 
@@ -194,6 +198,7 @@ export default async function DriversPage() {
 
             const name = normalizeName(u.iracingName || "Unknown Driver");
             const acc: DriverAccumulator = {
+                iracingCustId: u.iracingCustId,
                 name,
                 points: 0,
                 starts: 0,
@@ -211,7 +216,13 @@ export default async function DriversPage() {
         console.error("listCnaUsers failed", e);
     }
 
-    const driverList: DriverProfile[] = Array.from(drivers.values()).map((driver) => ({
+    const uniqueDrivers: DriverAccumulator[] = [
+        ...Array.from(driversByCustId.values()),
+        ...Array.from(drivers.values()).filter((d) => !d.iracingCustId),
+    ];
+
+    const driverList: DriverProfile[] = uniqueDrivers.map((driver) => ({
+        iracingCustId: driver.iracingCustId ?? null,
         name: driver.name,
         points: Math.round(driver.points),
         starts: driver.starts,
