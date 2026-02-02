@@ -18,10 +18,10 @@ export default defineConfig({
         clearMocks: true,
         restoreMocks: true,
         unstubEnvs: true,
-        // Keep coverage focused on our backend/auth code. Expand later as we add DB-backed features.
+        // Keep coverage focused on our server-side code (auth + events + signup APIs).
         coverage: {
             provider: "v8",
-            include: ["lib/auth/**/*.ts", "app/**/route.ts"],
+            include: ["lib/auth/**/*.ts", "lib/events/**/*.ts", "lib/signup/**/*.ts", "lib/db/**/*.ts", "app/**/route.ts"],
             exclude: ["**/*.d.ts"],
         },
     },

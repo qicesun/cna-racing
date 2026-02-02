@@ -174,6 +174,17 @@ export function TopNav() {
                             >
                                 Account
                             </Link>
+                            <Link
+                                href="/signup"
+                                className={[
+                                    "rounded-xl px-3 py-2 text-sm font-semibold transition",
+                                    isActive("/signup")
+                                        ? "text-white bg-white/10"
+                                        : "text-zinc-300 hover:text-white hover:bg-white/5",
+                                ].join(" ")}
+                            >
+                                Signup 报名
+                            </Link>
 
                             {seriesList.map((s) => {
                                 const active = isActive(s.href);
@@ -325,6 +336,17 @@ export function TopNav() {
                                         ].join(" ")}
                                     >
                                         Account
+                                    </Link>
+                                    <Link
+                                        href="/signup"
+                                        className={[
+                                            "mt-1 block rounded-xl px-3 py-2 text-sm font-semibold transition",
+                                            isActive("/signup")
+                                                ? "bg-white/10 text-white"
+                                                : "text-zinc-300 hover:bg-white/5 hover:text-white",
+                                        ].join(" ")}
+                                    >
+                                        Signup 报名
                                     </Link>
 
                                     <div className="mt-2 text-[11px] tracking-widest text-zinc-400 px-3">

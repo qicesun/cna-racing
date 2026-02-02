@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { rookie, RookieRace } from "@/data/rookie";
+import { EventSignupButton } from "@/components/EventSignupButton";
+import { deriveSeasonKey, makeEventId } from "@/lib/events/catalog";
 
 /** 是否已结束（基于绝对时间点，UTC → 本地自动换算） */
 function isPast(r: RookieRace, now: Date) {
@@ -23,6 +25,7 @@ function formatStartLocal(iso: string) {
 
 export default function RookieSchedulePage() {
     const now = new Date();
+    const seasonKey = deriveSeasonKey(rookie.seasonName);
 
     const races = rookie.races
         .slice()
@@ -80,6 +83,7 @@ export default function RookieSchedulePage() {
                     {races.map((r) => {
                         const past = isPast(r, now);
                         const isNext = nextRace?.round === r.round;
+                        const eventId = makeEventId("rookie", seasonKey, r.round);
 
                         return (
                             <div
@@ -113,6 +117,10 @@ export default function RookieSchedulePage() {
                                     <span className="rounded-xl border border-white/15 px-3 py-1.5 text-xs font-semibold">
                     {past ? "Finished" : "Upcoming"}
                   </span>
+                                </div>
+
+                                <div className="mt-4">
+                                    <EventSignupButton eventId={eventId} />
                                 </div>
                             </div>
                         );
