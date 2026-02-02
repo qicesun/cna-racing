@@ -183,7 +183,7 @@ export function TopNav() {
                                         : "text-zinc-300 hover:text-white hover:bg-white/5",
                                 ].join(" ")}
                             >
-                                Signup 报名
+                                报名
                             </Link>
 
                             {seriesList.map((s) => {
@@ -346,7 +346,7 @@ export function TopNav() {
                                                 : "text-zinc-300 hover:bg-white/5 hover:text-white",
                                         ].join(" ")}
                                     >
-                                        Signup 报名
+                                        报名
                                     </Link>
 
                                     <div className="mt-2 text-[11px] tracking-widest text-zinc-400 px-3">
