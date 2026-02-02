@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { gt3open, GT3Race } from "@/data/gt3open";
+import { EventSignupButton } from "@/components/EventSignupButton";
 import LocalTime from "@/components/LocalTime";
+import { deriveSeasonKey, makeEventId } from "@/lib/events/catalog";
 
 function isPast(r: GT3Race, now: Date) {
     return new Date(r.start).getTime() < now.getTime();
@@ -8,6 +10,7 @@ function isPast(r: GT3Race, now: Date) {
 
 export default function GT3SchedulePage() {
     const now = new Date();
+    const seasonKey = deriveSeasonKey(gt3open.seasonName);
 
     const races = gt3open.races
         .slice()
@@ -59,6 +62,7 @@ export default function GT3SchedulePage() {
                     {races.map((r) => {
                         const past = isPast(r, now);
                         const isNext = nextRace?.round === r.round;
+                        const eventId = makeEventId("gt3open", seasonKey, r.round);
 
                         return (
                             <div
@@ -105,6 +109,10 @@ export default function GT3SchedulePage() {
                                             </a>
                                         )}
                                     </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <EventSignupButton eventId={eventId} />
                                 </div>
                             </div>
                         );
