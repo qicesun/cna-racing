@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { SessionUser } from "@/lib/auth/types";
@@ -32,6 +32,7 @@ async function fetchStatus(eventIds: string[]): Promise<StatusPayload> {
 
 export function EventSignupButton(props: { eventId: string; className?: string }) {
     const pathname = usePathname();
+    const router = useRouter();
     const [user, setUser] = useState<SessionUser | null>(null);
     const [count, setCount] = useState<number>(0);
     const [signedUp, setSignedUp] = useState<boolean>(false);
@@ -91,12 +92,14 @@ export function EventSignupButton(props: { eventId: string; className?: string }
             }
             if (!res.ok) throw new Error(`signup http ${res.status}`);
             await refresh();
+            // The roster page is server-rendered; refresh the route so the list updates.
+            router.refresh();
         } catch {
             setError("报名失败，请稍后重试");
         } finally {
             setLoading(false);
         }
-    }, [eventId, refresh]);
+    }, [eventId, refresh, router]);
 
     const doCancel = useCallback(async () => {
         setLoading(true);
@@ -112,12 +115,13 @@ export function EventSignupButton(props: { eventId: string; className?: string }
             }
             if (!res.ok) throw new Error(`cancel http ${res.status}`);
             await refresh();
+            router.refresh();
         } catch {
             setError("取消报名失败，请稍后重试");
         } finally {
             setLoading(false);
         }
-    }, [eventId, refresh]);
+    }, [eventId, refresh, router]);
 
     return (
         <div className={["flex flex-wrap items-center gap-2", props.className ?? ""].join(" ")}>
@@ -165,4 +169,3 @@ export function EventSignupButton(props: { eventId: string; className?: string }
         </div>
     );
 }
-
