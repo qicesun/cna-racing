@@ -8,6 +8,7 @@ export type DriverProfile = {
     starts: number;
     irating?: number | null;
     safetyRating?: number | null;
+    lastLoginAt?: string | null;
     series: string[];
     lastRace?: {
         series: string;
@@ -29,6 +30,13 @@ export default function DriversClient({ drivers }: DriversClientProps) {
     const [sortKey, setSortKey] = useState<SortKey>("points");
     const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
+    const loginTs = (d: DriverProfile): number => {
+        const raw = d.lastLoginAt;
+        if (!raw) return 0;
+        const t = Date.parse(raw);
+        return Number.isFinite(t) ? t : 0;
+    };
+
     const filtered = useMemo(() => {
         const search = query.trim().toLowerCase();
         let list = drivers;
@@ -45,14 +53,29 @@ export default function DriversClient({ drivers }: DriversClientProps) {
         const sorted = [...list].sort((a, b) => {
             switch (sortKey) {
                 case "name":
-                    return a.name.localeCompare(b.name);
+                    return a.name.localeCompare(b.name) || loginTs(b) - loginTs(a);
                 case "starts":
-                    return (b.starts ?? 0) - (a.starts ?? 0) || a.name.localeCompare(b.name);
+                    return (
+                        (b.starts ?? 0) - (a.starts ?? 0) ||
+                        (b.points ?? 0) - (a.points ?? 0) ||
+                        loginTs(b) - loginTs(a) ||
+                        a.name.localeCompare(b.name)
+                    );
                 case "irating":
-                    return (b.irating ?? 0) - (a.irating ?? 0) || a.name.localeCompare(b.name);
+                    return (
+                        (b.irating ?? 0) - (a.irating ?? 0) ||
+                        (b.points ?? 0) - (a.points ?? 0) ||
+                        loginTs(b) - loginTs(a) ||
+                        a.name.localeCompare(b.name)
+                    );
                 case "points":
                 default:
-                    return (b.points ?? 0) - (a.points ?? 0) || a.name.localeCompare(b.name);
+                    return (
+                        (b.points ?? 0) - (a.points ?? 0) ||
+                        (b.starts ?? 0) - (a.starts ?? 0) ||
+                        loginTs(b) - loginTs(a) ||
+                        a.name.localeCompare(b.name)
+                    );
             }
         });
 

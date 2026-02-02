@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 
 import DriversClient, { DriverProfile } from "./DriversClient";
+import { listCnaUsers } from "@/lib/db/cnaUsers";
 import { defaultPoints, normalizeName, pointsForPosition } from "@/lib/points";
 import {
     getSession,
@@ -10,6 +11,9 @@ import {
     sortByFinishPosition,
     unwrapIRacingEvent,
 } from "@/lib/iracingResult";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type IndexEntry = {
     id: string;
@@ -50,6 +54,7 @@ type DriverAccumulator = {
         dateIso?: string;    // ✅ keep iso for client formatting
         timestamp?: number;
     } | null;
+    lastLoginAt?: string | null;
 };
 
 async function readJsonFromPublic<T>(publicPath: string): Promise<T | null> {
@@ -97,6 +102,7 @@ export default async function DriversPage() {
     ];
 
     const drivers = new Map<string, DriverAccumulator>();
+    const driversByCustId = new Map<number, DriverAccumulator>();
 
     for (const source of sources) {
         const index = (await readJsonFromPublic<IndexEntry[]>(source.indexPath)) ?? [];
@@ -124,6 +130,7 @@ export default async function DriversPage() {
                         : pointsForPosition(indexPos + 1, defaultPoints);
 
                 const custId = row.cust_id ? String(row.cust_id) : undefined;
+                const custIdNumber = custId && Number.isFinite(Number(custId)) ? Number(custId) : null;
                 const license = custId ? selectSportsCarLicense(licenseMap?.[custId]) : null;
 
                 const current =
@@ -136,6 +143,7 @@ export default async function DriversPage() {
                         safetyRating: null,
                         series: new Set<string>(),
                         lastRace: null,
+                        lastLoginAt: null,
                     } satisfies DriverAccumulator);
 
                 current.points += points;
@@ -147,6 +155,10 @@ export default async function DriversPage() {
                 if (license) {
                     current.irating = license.irating ?? current.irating ?? null;
                     current.safetyRating = license.safety_rating ?? current.safetyRating ?? null;
+                }
+
+                if (custIdNumber && !driversByCustId.has(custIdNumber)) {
+                    driversByCustId.set(custIdNumber, current);
                 }
 
                 // ✅ lastRace: use strict ">" so ties don't overwrite randomly
@@ -168,12 +180,44 @@ export default async function DriversPage() {
         }
     }
 
+    // Include users who have logged into CNA (but may not have race results yet).
+    // This should not break the Drivers page if Supabase is misconfigured or down.
+    try {
+        const users = await listCnaUsers();
+
+        for (const u of users) {
+            const existing = driversByCustId.get(u.iracingCustId) ?? drivers.get(normalizeName(u.iracingName));
+            if (existing) {
+                existing.lastLoginAt = u.updatedAt;
+                continue;
+            }
+
+            const name = normalizeName(u.iracingName || "Unknown Driver");
+            const acc: DriverAccumulator = {
+                name,
+                points: 0,
+                starts: 0,
+                irating: null,
+                safetyRating: null,
+                series: new Set<string>(),
+                lastRace: null,
+                lastLoginAt: u.updatedAt,
+            };
+
+            drivers.set(name, acc);
+            driversByCustId.set(u.iracingCustId, acc);
+        }
+    } catch (e) {
+        console.error("listCnaUsers failed", e);
+    }
+
     const driverList: DriverProfile[] = Array.from(drivers.values()).map((driver) => ({
         name: driver.name,
         points: Math.round(driver.points),
         starts: driver.starts,
         irating: driver.irating ?? null,
         safetyRating: driver.safetyRating ?? null,
+        lastLoginAt: driver.lastLoginAt ?? null,
 
         // ✅ pass series as KEYS (DriversClient can map to labels if you want)
         series: Array.from(driver.series.values()).sort(),

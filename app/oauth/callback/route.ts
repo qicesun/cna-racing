@@ -19,6 +19,7 @@ import {
     SESSION_COOKIE_NAME,
 } from "@/lib/auth/session";
 import { sanitizeNextPath, safeEqual } from "@/lib/auth/utils";
+import { upsertCnaUser } from "@/lib/db/cnaUsers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -115,6 +116,20 @@ export async function GET(request: NextRequest) {
     } catch (e) {
         const msg = e instanceof Error ? e.message : "Unknown error";
         return redirectWithError(request, { error: "server_error", error_description: msg });
+    }
+
+    // Best-effort persistence of CNA account data for features like the Drivers directory.
+    // This should never block login if the DB is misconfigured or down.
+    try {
+        await upsertCnaUser({
+            iracingCustId: profile.iracing_cust_id,
+            iracingName: profile.iracing_name,
+        });
+    } catch (e) {
+        // Avoid noisy logs in local/test envs; still log in production for debugging.
+        if (process.env.NODE_ENV === "production") {
+            console.error("upsertCnaUser failed", e);
+        }
     }
 
     // Create a signed session cookie. This is enough for upcoming signup/team features.
