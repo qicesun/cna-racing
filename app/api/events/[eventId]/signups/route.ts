@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { getEventById } from "@/lib/events/catalog";
+import { getEventById, normalizeEventId } from "@/lib/events/catalog";
 import { getSignupStore } from "@/lib/signup/store";
 
 export const runtime = "nodejs";
@@ -10,7 +10,8 @@ export async function GET(
     _request: Request,
     context: { params: { eventId: string } | Promise<{ eventId: string }> }
 ) {
-    const { eventId } = await Promise.resolve(context.params);
+    const rawEventId = (await Promise.resolve(context.params)).eventId;
+    const eventId = normalizeEventId(rawEventId);
 
     const event = getEventById(eventId);
     if (!event) {

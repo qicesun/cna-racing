@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getCurrentUser } from "@/lib/auth/currentUser";
-import { getEventById } from "@/lib/events/catalog";
+import { getEventById, normalizeEventId } from "@/lib/events/catalog";
 import { getSignupStore } from "@/lib/signup/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function readEventId(context: { params: { eventId: string } | Promise<{ eventId: string }> }): Promise<string> {
-    const { eventId } = await Promise.resolve(context.params);
-    return eventId;
+    const rawEventId = (await Promise.resolve(context.params)).eventId;
+    return normalizeEventId(rawEventId);
 }
 
 export async function POST(_request: NextRequest, context: { params: { eventId: string } | Promise<{ eventId: string }> }) {
