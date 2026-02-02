@@ -49,6 +49,16 @@ export function makeEventId(seriesKey: string, seasonKey: string, round: number)
     return `${seriesKey}:${seasonKey}:${round}`;
 }
 
+// Next.js route params may be percent-encoded (e.g. `gt3open%3A26S1%3A1`).
+// Normalize to the canonical event id used by our catalog + DB.
+export function normalizeEventId(eventIdParam: string): string {
+    try {
+        return decodeURIComponent(eventIdParam);
+    } catch {
+        return eventIdParam;
+    }
+}
+
 export function parseEventId(eventId: string): { seriesKey: string; seasonKey: string; round: number } | null {
     const parts = eventId.split(":");
     if (parts.length !== 3) return null;
@@ -105,4 +115,3 @@ export function getEventById(eventId: string): Event | null {
     if (!cachedById) listAllEvents();
     return cachedById?.get(eventId) ?? null;
 }
-

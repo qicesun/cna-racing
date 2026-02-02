@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { EventSignupButton } from "@/components/EventSignupButton";
 import LocalTime from "@/components/LocalTime";
-import { getEventById } from "@/lib/events/catalog";
+import { getEventById, normalizeEventId } from "@/lib/events/catalog";
 import { getSignupStore } from "@/lib/signup/store";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,8 @@ type Props = {
 };
 
 export default async function EventPage({ params }: Props) {
-    const { eventId } = await Promise.resolve(params);
+    const rawEventId = (await Promise.resolve(params)).eventId;
+    const eventId = normalizeEventId(rawEventId);
     const event = getEventById(eventId);
     if (!event) notFound();
 
@@ -80,4 +81,3 @@ export default async function EventPage({ params }: Props) {
         </main>
     );
 }
-

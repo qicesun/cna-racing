@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveSeasonKey, getEventById, makeEventId, parseEventId } from "@/lib/events/catalog";
+import { deriveSeasonKey, getEventById, makeEventId, normalizeEventId, parseEventId } from "@/lib/events/catalog";
 
 describe("lib/events/catalog", () => {
     it("derives a stable season key for CNA seasons", () => {
@@ -16,6 +16,13 @@ describe("lib/events/catalog", () => {
         expect(parseEventId("a:b:0")).toBeNull();
     });
 
+    it("normalizes percent-encoded event id params", () => {
+        expect(normalizeEventId("gt3open%3A26S1%3A1")).toBe("gt3open:26S1:1");
+        expect(normalizeEventId("gt3open:26S1:1")).toBe("gt3open:26S1:1");
+        // Invalid escape sequences should not crash the page/router.
+        expect(normalizeEventId("%E0%A4%A")).toBe("%E0%A4%A");
+    });
+
     it("finds known events from static schedule data", () => {
         const id = makeEventId("gt3open", deriveSeasonKey("Season 26S1"), 1);
         const event = getEventById(id);
@@ -25,4 +32,3 @@ describe("lib/events/catalog", () => {
         expect(event?.round).toBe(1);
     });
 });
-
