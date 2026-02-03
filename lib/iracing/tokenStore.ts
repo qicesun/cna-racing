@@ -50,6 +50,12 @@ export async function storeIracingAuthTokens(params: {
 }
 
 export async function getValidIracingAuthAccessToken(iracingCustId: number): Promise<string | null> {
+    return getValidIracingAuthAccessTokenInner(iracingCustId, 0);
+}
+
+async function getValidIracingAuthAccessTokenInner(iracingCustId: number, depth: number): Promise<string | null> {
+    if (depth > 1) return null;
+
     const row = await getCnaIracingTokensByCustId(iracingCustId);
     if (!row) return null;
 
@@ -83,6 +89,24 @@ export async function getValidIracingAuthAccessToken(iracingCustId: number): Pro
         return refreshed.access_token;
     } catch (e) {
         if (e instanceof IracingOAuthError) {
+            // Concurrency-safe behavior:
+            // refresh_token is one-time-use; if a concurrent request rotated it successfully,
+            // our refresh will fail with invalid_grant. Re-read the DB before deleting.
+            let latest = null;
+            try {
+                latest = await getCnaIracingTokensByCustId(iracingCustId);
+            } catch {
+                latest = null;
+            }
+            if (latest && latest.updatedAt !== row.updatedAt) {
+                const latestAccessExp = parseMs(latest.accessExpiresAt);
+                const latestNow = Date.now();
+                if (latestAccessExp !== null && latestAccessExp - ACCESS_TOKEN_SKEW_MS > latestNow) {
+                    return latest.accessToken;
+                }
+                return getValidIracingAuthAccessTokenInner(iracingCustId, depth + 1);
+            }
+
             // Discard invalid/expired refresh token and require a fresh authorization.
             await deleteCnaIracingTokensByCustId(iracingCustId).catch(() => undefined);
             return null;
@@ -90,4 +114,3 @@ export async function getValidIracingAuthAccessToken(iracingCustId: number): Pro
         throw e;
     }
 }
-

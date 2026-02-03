@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import LocalTime from "@/components/LocalTime";
-import { getCurrentUser } from "@/lib/auth/currentUser";
 import { getCnaUserByCustId } from "@/lib/db/cnaUsers";
 import { getCnaUserProfile } from "@/lib/db/cnaUserProfiles";
 import { getDriverStatsFromResultsByCustId } from "@/lib/drivers/stats";
@@ -27,14 +26,12 @@ export default async function DriverProfilePage({ params }: Props) {
     const custId = safeNumber(rawCustId);
     if (!custId) notFound();
 
-    const viewer = await getCurrentUser().catch(() => null);
-    const shouldRefreshIracing = viewer?.iracingCustId === custId;
-
     const [cnaUser, profile, stats, memberInfo] = await Promise.all([
         getCnaUserByCustId(custId).catch(() => null),
         getCnaUserProfile(custId).catch(() => null),
         getDriverStatsFromResultsByCustId(custId).catch(() => null),
-        getOrRefreshIracingMemberInfo(custId, { refresh: shouldRefreshIracing }).catch(() => null),
+        // Allow public visits to trigger refresh when cached data is stale.
+        getOrRefreshIracingMemberInfo(custId, { refresh: true }).catch(() => null),
     ]);
 
     if (!cnaUser && !stats) notFound();

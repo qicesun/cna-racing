@@ -136,4 +136,40 @@ describe("lib/iracing/tokenStore", () => {
         await expect(getValidIracingAuthAccessToken(1)).resolves.toBeNull();
         expect(deleteCnaIracingTokensByCustId).toHaveBeenCalledWith(1);
     });
+
+    it("does not delete tokens when refresh fails but another request already rotated them", async () => {
+        process.env.CNA_SESSION_SECRET = "s".repeat(40);
+        process.env.CNA_TOKEN_ENC_SECRET = "t".repeat(40);
+
+        const refreshEnc1 = encryptAes256Gcm("REFRESH_1", getCnaTokenEncryptionSecret());
+        const refreshEnc2 = encryptAes256Gcm("REFRESH_2", getCnaTokenEncryptionSecret());
+
+        // First read: expired access token (will attempt refresh with refreshEnc1)
+        getCnaIracingTokensByCustId
+            .mockResolvedValueOnce({
+                iracingCustId: 1,
+                accessToken: "ACCESS_1",
+                accessExpiresAt: new Date(Date.now() - 1_000).toISOString(),
+                refreshTokenEnc: refreshEnc1,
+                refreshExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+                scope: "iracing.auth",
+                updatedAt: "2026-02-03T00:00:00.000Z",
+            })
+            // Second read (after refresh error): tokens already rotated by another request.
+            .mockResolvedValueOnce({
+                iracingCustId: 1,
+                accessToken: "ACCESS_2",
+                accessExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+                refreshTokenEnc: refreshEnc2,
+                refreshExpiresAt: new Date(Date.now() + 3600_000).toISOString(),
+                scope: "iracing.auth",
+                updatedAt: "2026-02-03T00:00:01.000Z",
+            });
+
+        vi.mocked(refreshIracingToken).mockRejectedValueOnce(new IracingOAuthError("invalid_grant", "used"));
+
+        const access = await getValidIracingAuthAccessToken(1);
+        expect(access).toBe("ACCESS_2");
+        expect(deleteCnaIracingTokensByCustId).not.toHaveBeenCalled();
+    });
 });
