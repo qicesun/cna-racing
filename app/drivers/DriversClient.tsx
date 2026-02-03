@@ -159,11 +159,21 @@ export default function DriversClient({ drivers }: DriversClientProps) {
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     {driver.iracingCustId ? (
-                                        <DriverLink
-                                            custId={driver.iracingCustId}
-                                            name={driver.name}
-                                            className="text-lg font-semibold text-white hover:underline"
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            <DriverLink
+                                                custId={driver.iracingCustId}
+                                                name={driver.name}
+                                                className="text-lg font-semibold text-white hover:underline"
+                                            />
+                                            {driver.lastLoginAt ? (
+                                                <span
+                                                    className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold tracking-widest text-emerald-200"
+                                                    title="Logged into CNA Racing"
+                                                >
+                                                    CNA
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     ) : (
                                         <div className="text-lg font-semibold text-white">{driver.name}</div>
                                     )}
@@ -221,11 +231,21 @@ export default function DriversClient({ drivers }: DriversClientProps) {
                             >
                                 <td className="px-4 py-3 font-semibold text-white">
                                     {driver.iracingCustId ? (
-                                        <DriverLink
-                                            custId={driver.iracingCustId}
-                                            name={driver.name}
-                                            className="hover:underline"
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            <DriverLink
+                                                custId={driver.iracingCustId}
+                                                name={driver.name}
+                                                className="hover:underline"
+                                            />
+                                            {driver.lastLoginAt ? (
+                                                <span
+                                                    className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-bold tracking-widest text-emerald-200"
+                                                    title="Logged into CNA Racing"
+                                                >
+                                                    CNA
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     ) : (
                                         driver.name
                                     )}
