@@ -63,8 +63,20 @@ export function normalizeIracingMemberInfo(raw: unknown): IracingMemberInfo | nu
     const displayName =
         readString(raw.display_name ?? raw.displayName ?? raw.iracing_name ?? raw.iracingName) ?? null;
 
-    const rawLicenses = Array.isArray(raw.licenses) ? raw.licenses : [];
-    const licenses = rawLicenses.map(normalizeLicense).filter((l): l is IracingLicense => l !== null);
+    let rawLicenses: unknown[] = [];
+    if (Array.isArray(raw.licenses)) {
+        rawLicenses = raw.licenses;
+    } else if (isObject(raw.licenses)) {
+        // Some payloads encode licenses as an object map keyed by category.
+        rawLicenses = Object.entries(raw.licenses).map(([category, value]) => {
+            if (!isObject(value)) return null;
+            return { category, ...value };
+        });
+    }
+
+    const licenses = rawLicenses
+        .map(normalizeLicense)
+        .filter((l): l is IracingLicense => l !== null);
 
     return { custId, displayName, licenses };
 }
@@ -83,4 +95,3 @@ export async function fetchIracingMemberInfo(accessToken: string): Promise<Iraci
     }
     return info;
 }
-
