@@ -269,13 +269,14 @@ export default function ImportClient(props: Props) {
                                                 }))
                                             }
                                             placeholder="subsession_id 或 iRacing 结果链接"
+                                            title="subsession_id 或 iRacing 结果链接"
                                             onBlur={() => {
                                                 const n = getSubsessionIdFromInput(e.eventId);
                                                 if (n) {
                                                     setSubsessionByEventId((prev) => ({ ...prev, [e.eventId]: String(n) }));
                                                 }
                                             }}
-                                            className="w-44 rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/30"
+                                            className="w-72 rounded-lg border border-white/10 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/30"
                                         />
                                     </td>
 
