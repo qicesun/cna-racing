@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { msToClock, pos1 } from "@/lib/iracingResult";
+import DriverLink from "@/components/DriverLink";
 
 type Props = {
     practiceTitle?: string;
@@ -163,7 +164,13 @@ export default function ResultsTabs(props: Props) {
                                 className="border-b border-white/5 hover:bg-white/5"
                             >
                                 <td className="px-4 py-3 text-zinc-200 font-semibold">{pos1(r)}</td>
-                                <td className="px-4 py-3 text-zinc-200">{r.display_name ?? "—"}</td>
+                                <td className="px-4 py-3 text-zinc-200">
+                                    <DriverLink
+                                        custId={typeof r.cust_id === "number" ? r.cust_id : Number(r.cust_id)}
+                                        name={r.display_name ?? "—"}
+                                        className="font-semibold text-zinc-200 hover:underline"
+                                    />
+                                </td>
                                 <td className="px-4 py-3 text-zinc-200">{r.car_name ?? "—"}</td>
                                 <td className="px-4 py-3 text-zinc-200">{r.laps_complete ?? "—"}</td>
                                 <td className="px-4 py-3 text-zinc-200">{r.incidents ?? "—"}</td>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import DriverLink from "@/components/DriverLink";
 import { gt3open } from "@/data/gt3open";
 import { deriveSeasonKey, getEventById, listAllEvents } from "@/lib/events/catalog";
 import {
@@ -199,8 +200,20 @@ export default async function GT3ResultsListPage() {
                                         </td>
                                         <td className="px-4 py-3 text-zinc-200">
                                             {top3.length ? (
-                                                <span className="truncate block max-w-[520px]">
-                                                    {top3.map((x: any, idx: number) => `#${idx + 1} ${x?.name ?? "—"}`).join(" · ")}
+                                                <span className="truncate block max-w-[520px] whitespace-nowrap">
+                                                    {top3.map((x: any, idx: number) => (
+                                                        <span key={`${e.eventId}:${x?.custId ?? idx}`}>
+                                                            <span className="text-zinc-400">#{idx + 1}</span>{" "}
+                                                            <DriverLink
+                                                                custId={typeof x?.custId === "number" ? x.custId : Number(x?.custId)}
+                                                                name={x?.name ?? "—"}
+                                                                className="font-semibold text-zinc-200 hover:underline"
+                                                            />
+                                                            {idx < top3.length - 1 ? (
+                                                                <span className="text-zinc-500"> · </span>
+                                                            ) : null}
+                                                        </span>
+                                                    ))}
                                                 </span>
                                             ) : (
                                                 <span className="text-zinc-500">—</span>
@@ -232,15 +245,18 @@ export default async function GT3ResultsListPage() {
                         const href = `/gt3open/results/${encodeURIComponent(c.eventId)}`;
 
                         return (
-                            <Link
+                            <div
                                 key={c.eventId}
-                                href={href}
                                 className={[
-                                    "block overflow-hidden rounded-[28px] border border-white/10 bg-white/5",
+                                    "relative block overflow-hidden rounded-[28px] border border-white/10 bg-white/5",
                                     "shadow-[0_20px_60px_rgba(0,0,0,0.45)] transition hover:bg-white/10",
                                     c.finished ? "ring-1 ring-white/5" : "",
                                 ].join(" ")}
                             >
+                                {/* Full-card click target (avoid nested <a> so driver names can link out) */}
+                                <Link href={href} className="absolute inset-0 z-0" aria-label={`Open results: ${c.title}`} />
+
+                                <div className="relative z-10 pointer-events-none">
                                 {/* 1) 顶部图片 */}
                                 <div className="relative h-56">
                                     {c.cover ? (
@@ -309,8 +325,12 @@ export default async function GT3ResultsListPage() {
                                                             </div>
 
                                                             <div className="min-w-0">
-                                                                <div className="truncate text-[18px] font-semibold text-zinc-900">
-                                                                    {r.display_name ?? "Driver"}
+                                                                <div className="truncate text-[18px] font-semibold text-zinc-900 pointer-events-auto">
+                                                                    <DriverLink
+                                                                        custId={typeof r.cust_id === "number" ? r.cust_id : Number(r.cust_id)}
+                                                                        name={r.display_name ?? "Driver"}
+                                                                        className="text-zinc-900 hover:underline"
+                                                                    />
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -346,7 +366,8 @@ export default async function GT3ResultsListPage() {
                                         <span className="truncate max-w-[60%]">{c.title}</span>
                                     </div>
                                 </div>
-                            </Link>
+                                </div>
+                            </div>
                         );
                     })}
                 </div>

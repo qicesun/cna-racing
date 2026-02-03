@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
+
+import DriverLink from "@/components/DriverLink";
 
 export type DriverProfile = {
     iracingCustId?: number | null;
@@ -158,12 +159,11 @@ export default function DriversClient({ drivers }: DriversClientProps) {
                             <div className="flex items-start justify-between gap-3">
                                 <div>
                                     {driver.iracingCustId ? (
-                                        <Link
-                                            href={`/drivers/${driver.iracingCustId}`}
+                                        <DriverLink
+                                            custId={driver.iracingCustId}
+                                            name={driver.name}
                                             className="text-lg font-semibold text-white hover:underline"
-                                        >
-                                            {driver.name}
-                                        </Link>
+                                        />
                                     ) : (
                                         <div className="text-lg font-semibold text-white">{driver.name}</div>
                                     )}
@@ -221,9 +221,11 @@ export default function DriversClient({ drivers }: DriversClientProps) {
                             >
                                 <td className="px-4 py-3 font-semibold text-white">
                                     {driver.iracingCustId ? (
-                                        <Link href={`/drivers/${driver.iracingCustId}`} className="hover:underline">
-                                            {driver.name}
-                                        </Link>
+                                        <DriverLink
+                                            custId={driver.iracingCustId}
+                                            name={driver.name}
+                                            className="hover:underline"
+                                        />
                                     ) : (
                                         driver.name
                                     )}

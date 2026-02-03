@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EventSignupButton } from "@/components/EventSignupButton";
+import DriverLink from "@/components/DriverLink";
 import LocalTime from "@/components/LocalTime";
 import { getEventById, normalizeEventId } from "@/lib/events/catalog";
 import { getResolvedEventResultByEventId } from "@/lib/results/resolvedEventResults";
@@ -113,12 +114,11 @@ export default async function EventPage({ params }: Props) {
                                     key={`${s.user.iracingCustId}`}
                                     className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3"
                                 >
-                                    <Link
-                                        href={`/drivers/${s.user.iracingCustId}`}
+                                    <DriverLink
+                                        custId={s.user.iracingCustId}
+                                        name={s.user.iracingName}
                                         className="font-semibold text-zinc-100 hover:underline"
-                                    >
-                                        {s.user.iracingName}
-                                    </Link>
+                                    />
                                     <div className="text-xs text-zinc-400 font-mono">
                                         {s.user.iracingCustId}
                                     </div>

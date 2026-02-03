@@ -5,12 +5,14 @@ import { driverToTeam } from "@/data/teams";
 import { gt3open } from "@/data/gt3open";
 import { deriveSeasonKey } from "@/lib/events/catalog";
 import { listResolvedEventResultsBySeriesSeason } from "@/lib/results/resolvedEventResults";
+import DriverLink from "@/components/DriverLink";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type DriverStanding = {
-    driver: string;
+    custId: number;
+    name: string;
     team: string;
     points: number;
     starts: number;
@@ -34,7 +36,8 @@ export default async function GT3OpenStandingsPage() {
     const drivers = snapshot.standings.map((s) => {
         const team = driverToTeam[s.name] ?? "—";
         return {
-            driver: s.name,
+            custId: s.custId,
+            name: s.name,
             team,
             points: s.points,
             starts: s.starts,
@@ -98,9 +101,15 @@ export default async function GT3OpenStandingsPage() {
                             </thead>
                             <tbody>
                             {drivers.map((d, idx) => (
-                                <tr key={d.driver} className="border-b border-white/5 hover:bg-white/5">
+                                <tr key={String(d.custId)} className="border-b border-white/5 hover:bg-white/5">
                                     <td className="px-4 py-3 text-zinc-200 font-semibold">{idx + 1}</td>
-                                    <td className="px-4 py-3 text-zinc-200">{d.driver}</td>
+                                    <td className="px-4 py-3 text-zinc-200">
+                                        <DriverLink
+                                            custId={d.custId}
+                                            name={d.name}
+                                            className="font-semibold text-zinc-200 hover:underline"
+                                        />
+                                    </td>
                                     <td className="px-4 py-3 text-zinc-200">{d.team}</td>
                                     <td className="px-4 py-3 text-zinc-200 font-semibold">{d.points}</td>
                                     <td className="px-4 py-3 text-zinc-200">{d.starts}</td>

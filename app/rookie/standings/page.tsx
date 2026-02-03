@@ -4,6 +4,7 @@ import { rookie } from "@/data/rookie";
 import { deriveSeasonKey } from "@/lib/events/catalog";
 import { computeSeriesStandings } from "@/lib/results/computeSeriesStandings";
 import { listResolvedEventResultsBySeriesSeason } from "@/lib/results/resolvedEventResults";
+import DriverLink from "@/components/DriverLink";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,7 +67,13 @@ export default async function RookieStandingsPage() {
                             {snapshot.standings.map((s, i) => (
                                 <tr key={String(s.custId)} className="border-b border-white/5 hover:bg-white/5">
                                     <td className="px-4 py-3 text-zinc-200 font-semibold">{i + 1}</td>
-                                    <td className="px-4 py-3 text-zinc-200">{s.name}</td>
+                                    <td className="px-4 py-3 text-zinc-200">
+                                        <DriverLink
+                                            custId={s.custId}
+                                            name={s.name}
+                                            className="font-semibold text-zinc-200 hover:underline"
+                                        />
+                                    </td>
                                     <td className="px-4 py-3 text-zinc-200">{s.starts}</td>
                                     <td className="px-4 py-3 text-zinc-200">{s.wins}</td>
                                     <td className="px-4 py-3 text-zinc-200">{s.podiums}</td>
