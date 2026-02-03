@@ -21,7 +21,15 @@ export default defineConfig({
         // Keep coverage focused on our server-side code (auth + events + signup APIs).
         coverage: {
             provider: "v8",
-            include: ["lib/auth/**/*.ts", "lib/events/**/*.ts", "lib/signup/**/*.ts", "lib/db/**/*.ts", "app/**/route.ts"],
+            include: [
+                "lib/auth/**/*.ts",
+                "lib/events/**/*.ts",
+                "lib/signup/**/*.ts",
+                "lib/db/**/*.ts",
+                "lib/iracing/**/*.ts",
+                "lib/results/**/*.ts",
+                "app/**/route.ts",
+            ],
             exclude: ["**/*.d.ts"],
         },
     },
