@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth/admin", () => ({
     requireAdminUser: vi.fn(),
@@ -20,11 +20,13 @@ vi.mock("@/lib/events/catalog", () => ({
 
 vi.mock("@/lib/db/cnaEventSources", () => ({
     getCnaEventSourceByEventId: vi.fn(),
+    deleteCnaEventSourceByEventId: vi.fn(),
 }));
 
 vi.mock("@/lib/db/cnaEventResults", () => ({
     upsertCnaEventResult: vi.fn(),
     listCnaEventResultSummariesBySeriesSeason: vi.fn(),
+    deleteCnaEventResultByEventId: vi.fn(),
 }));
 
 vi.mock("@/lib/db/cnaSeriesStandings", () => ({
@@ -39,11 +41,11 @@ vi.mock("@/lib/iracing/tokenStore", () => ({
     getValidIracingAuthAccessToken: vi.fn(),
 }));
 
-import { POST } from "@/app/api/admin/import-event/route";
+import { DELETE, POST } from "@/app/api/admin/import-event/route";
 import { requireAdminUser } from "@/lib/auth/admin";
 import { getEventById } from "@/lib/events/catalog";
-import { getCnaEventSourceByEventId } from "@/lib/db/cnaEventSources";
-import { listCnaEventResultSummariesBySeriesSeason, upsertCnaEventResult } from "@/lib/db/cnaEventResults";
+import { deleteCnaEventSourceByEventId, getCnaEventSourceByEventId } from "@/lib/db/cnaEventSources";
+import { deleteCnaEventResultByEventId, listCnaEventResultSummariesBySeriesSeason, upsertCnaEventResult } from "@/lib/db/cnaEventResults";
 import { upsertCnaSeriesStandings } from "@/lib/db/cnaSeriesStandings";
 import { fetchIracingSubsessionResult } from "@/lib/iracing/results";
 import { getValidIracingAuthAccessToken } from "@/lib/iracing/tokenStore";
@@ -311,5 +313,53 @@ describe("app/api/admin/import-event route", () => {
         expect(upsertCnaSeriesStandings).toHaveBeenCalledWith(
             expect.objectContaining({ seriesKey: "gt3open", seasonKey: "26S1" })
         );
+    });
+});
+
+describe("app/api/admin/import-event route (DELETE)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns 401 when not authenticated", async () => {
+        vi.mocked(requireAdminUser).mockRejectedValueOnce(new Error("Not authenticated."));
+        const res = await DELETE({ json: async () => ({ eventId: "gt3open:26S1:8" }) } as any);
+        expect(res.status).toBe(401);
+    });
+
+    it("deletes event source + result and recomputes standings", async () => {
+        vi.mocked(requireAdminUser).mockResolvedValueOnce({ iracingCustId: 1127717, iracingName: "Admin" });
+        vi.mocked(getEventById).mockReturnValueOnce({ seriesKey: "gt3open" } as any);
+
+        vi.mocked(deleteCnaEventSourceByEventId).mockResolvedValueOnce(true);
+        vi.mocked(deleteCnaEventResultByEventId).mockResolvedValueOnce(true);
+
+        vi.mocked(listCnaEventResultSummariesBySeriesSeason).mockResolvedValueOnce([] as any);
+        vi.mocked(upsertCnaSeriesStandings).mockResolvedValueOnce(undefined);
+
+        const res = await DELETE({ json: async () => ({ eventId: "gt3open:26S1:8" }) } as any);
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.ok).toBe(true);
+        expect(body.deleted.eventId).toBe("gt3open:26S1:8");
+        expect(body.deleted.deletedSource).toBe(true);
+        expect(body.deleted.deletedResult).toBe(true);
+        expect(upsertCnaSeriesStandings).toHaveBeenCalledWith(
+            expect.objectContaining({ seriesKey: "gt3open", seasonKey: "26S1" })
+        );
+    });
+
+    it("can delete without recomputing standings", async () => {
+        vi.mocked(requireAdminUser).mockResolvedValueOnce({ iracingCustId: 1127717, iracingName: "Admin" });
+        vi.mocked(getEventById).mockReturnValueOnce({ seriesKey: "gt3open" } as any);
+
+        vi.mocked(deleteCnaEventSourceByEventId).mockResolvedValueOnce(true);
+        vi.mocked(deleteCnaEventResultByEventId).mockResolvedValueOnce(true);
+
+        const res = await DELETE({
+            json: async () => ({ eventId: "gt3open:26S1:8", recomputeStandings: false }),
+        } as any);
+        expect(res.status).toBe(200);
+        expect(upsertCnaSeriesStandings).not.toHaveBeenCalled();
     });
 });

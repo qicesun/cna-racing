@@ -29,6 +29,17 @@ async function postJson(url: string, body: unknown) {
     return { res, json };
 }
 
+async function deleteJson(url: string, body: unknown) {
+    const res = await fetch(url, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        cache: "no-store",
+    });
+    const json = await res.json().catch(() => null);
+    return { res, json };
+}
+
 function readErr(json: any): string {
     const desc = typeof json?.error_description === "string" ? json.error_description : null;
     const err = typeof json?.error === "string" ? json.error : null;
@@ -128,6 +139,36 @@ export default function ImportClient(props: Props) {
             }
         },
         [getSubsessionIdFromInput, router, setRow, sourcesByEventId]
+    );
+
+    const resetEvent = useCallback(
+        async (eventId: string) => {
+            const ok = window.confirm(
+                "Reset this event import?\n\nThis will:\n- delete cna_event_results (result)\n- delete cna_event_sources (mapping)\n- recompute standings\n\nYou can re-enter subsession_id and import again after this."
+            );
+            if (!ok) return;
+
+            setRow(eventId, { loading: true, error: null, ok: null });
+            try {
+                const { res, json } = await deleteJson("/api/admin/import-event", {
+                    eventId,
+                    deleteResult: true,
+                    deleteSource: true,
+                    recomputeStandings: true,
+                });
+                if (!res.ok) throw new Error(readErr(json));
+
+                // Reflect the server state immediately (Next router.refresh doesn't reset client state).
+                setSubsessionByEventId((prev) => ({ ...prev, [eventId]: "" }));
+                setRow(eventId, { ok: "Reset complete. You can import again.", error: null });
+                router.refresh();
+            } catch (e) {
+                setRow(eventId, { error: e instanceof Error ? e.message : "Reset failed.", ok: null });
+            } finally {
+                setRow(eventId, { loading: false });
+            }
+        },
+        [router, setRow, setSubsessionByEventId]
     );
 
     const bulkImportMissing = useCallback(async () => {
@@ -322,6 +363,16 @@ export default function ImportClient(props: Props) {
                                             >
                                                 导入
                                             </button>
+                                            {(source || result) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void resetEvent(e.eventId)}
+                                                    disabled={s.loading}
+                                                    className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-100 hover:bg-red-500/20 disabled:opacity-50"
+                                                >
+                                                    Reset
+                                                </button>
+                                            )}
                                             {s.error && (
                                                 <button
                                                     type="button"

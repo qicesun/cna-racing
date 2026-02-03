@@ -7,13 +7,19 @@ function makeSupabaseClientMock() {
     const responses: Record<string, SupabaseResponse> = {};
 
     class Builder {
-        private mode: "get" | "list" | null = null;
+        private mode: "get" | "list" | "delete" | null = null;
 
         constructor(private readonly table: string) {}
 
         upsert(payload: any, opts: any) {
             calls.push({ table: this.table, op: "upsert", payload, opts });
             return Promise.resolve(responses.upsert ?? { error: null });
+        }
+
+        delete() {
+            calls.push({ table: this.table, op: "delete" });
+            this.mode = "delete";
+            return this;
         }
 
         select(selection: string) {
@@ -23,7 +29,7 @@ function makeSupabaseClientMock() {
 
         eq(column: string, value: any) {
             calls.push({ table: this.table, op: "eq", column, value });
-            this.mode = "get";
+            if (this.mode !== "delete") this.mode = "get";
             return this;
         }
 
@@ -56,7 +62,12 @@ vi.mock("@/lib/db/supabaseAdmin", () => ({
     getSupabaseAdminClient: () => getSupabaseAdminClient(),
 }));
 
-import { getCnaEventSourceByEventId, listCnaEventSources, upsertCnaEventSource } from "@/lib/db/cnaEventSources";
+import {
+    deleteCnaEventSourceByEventId,
+    getCnaEventSourceByEventId,
+    listCnaEventSources,
+    upsertCnaEventSource,
+} from "@/lib/db/cnaEventSources";
 
 describe("lib/db/cnaEventSources", () => {
     it("upserts event source by event_id", async () => {
@@ -211,5 +222,32 @@ describe("lib/db/cnaEventSources", () => {
         getSupabaseAdminClient.mockReturnValue(client);
 
         await expect(listCnaEventSources(10)).rejects.toThrow(/list event sources failed/i);
+    });
+
+    it("deletes event source by event_id", async () => {
+        const { client, calls, responses } = makeSupabaseClientMock();
+        responses.delete = { error: null, data: [{ event_id: "gt3open:26S1:8" }] };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(deleteCnaEventSourceByEventId("gt3open:26S1:8")).resolves.toBe(true);
+
+        const deleteCall = calls.find((c) => c.table === "cna_event_sources" && c.op === "delete");
+        expect(deleteCall).toBeTruthy();
+    });
+
+    it("returns false when delete does not match any row", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.delete = { error: null, data: [] };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(deleteCnaEventSourceByEventId("gt3open:26S1:404")).resolves.toBe(false);
+    });
+
+    it("throws on delete errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.delete = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(deleteCnaEventSourceByEventId("gt3open:26S1:8")).rejects.toThrow(/delete event source failed/i);
     });
 });

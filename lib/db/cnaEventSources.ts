@@ -123,3 +123,17 @@ export async function listCnaEventSources(limit = 1000): Promise<CnaEventSource[
         .filter((x: CnaEventSource | null): x is CnaEventSource => x !== null);
 }
 
+export async function deleteCnaEventSourceByEventId(eventId: string): Promise<boolean> {
+    const supabase = getSupabaseAdminClient();
+
+    const { data, error } = await supabase
+        .from(SOURCES_TABLE)
+        .delete()
+        .eq("event_id", eventId)
+        .select("event_id")
+        .limit(1);
+
+    if (error) fail("Supabase delete event source failed", error);
+
+    return Array.isArray(data) && data.length > 0;
+}

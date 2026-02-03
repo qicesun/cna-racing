@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { requireAdminUser } from "@/lib/auth/admin";
 import { getEventById, normalizeEventId, parseEventId } from "@/lib/events/catalog";
-import { getCnaEventSourceByEventId } from "@/lib/db/cnaEventSources";
-import { listCnaEventResultSummariesBySeriesSeason, upsertCnaEventResult } from "@/lib/db/cnaEventResults";
+import { deleteCnaEventSourceByEventId, getCnaEventSourceByEventId } from "@/lib/db/cnaEventSources";
+import {
+    deleteCnaEventResultByEventId,
+    listCnaEventResultSummariesBySeriesSeason,
+    upsertCnaEventResult,
+} from "@/lib/db/cnaEventResults";
 import { upsertCnaSeriesStandings } from "@/lib/db/cnaSeriesStandings";
 import { unwrapIRacingEvent } from "@/lib/iracingResult";
 import { fetchIracingSubsessionResult } from "@/lib/iracing/results";
@@ -247,5 +251,88 @@ export async function POST(request: NextRequest) {
             count: parsedRace.raceResults.results.length,
         },
         warnings: validation.ok ? validation.warnings : ["Import forced; validations failed."],
+    });
+}
+
+export async function DELETE(request: NextRequest) {
+    let admin;
+    try {
+        admin = await requireAdminUser();
+    } catch (e) {
+        const auth = isAuthError(e);
+        if (auth) return jsonError(auth.status, "unauthorized", auth.message);
+        return jsonError(500, "server_error", e instanceof Error ? e.message : "Unknown error");
+    }
+
+    let payload: any = null;
+    try {
+        payload = await request.json();
+    } catch {
+        payload = null;
+    }
+
+    const eventId = typeof payload?.eventId === "string" ? normalizeEventId(payload.eventId) : null;
+    if (!eventId) return jsonError(400, "invalid_request", "Expected { eventId: string }.");
+
+    const deleteSource = payload?.deleteSource !== false;
+    const deleteResult = payload?.deleteResult !== false;
+    const recomputeStandings = payload?.recomputeStandings !== false;
+
+    const event = getEventById(eventId);
+    if (!event) return jsonError(404, "not_found", "Event not found in catalog.");
+
+    const parsed = parseEventId(eventId);
+    if (!parsed) return jsonError(400, "invalid_request", "Invalid event_id format (expected series:season:round).");
+
+    let deletedSource = false;
+    let deletedResult = false;
+
+    try {
+        if (deleteSource) deletedSource = await deleteCnaEventSourceByEventId(eventId);
+        if (deleteResult) deletedResult = await deleteCnaEventResultByEventId(eventId);
+    } catch (e) {
+        return jsonError(500, "server_error", e instanceof Error ? e.message : "Failed to delete event data.");
+    }
+
+    const nowIso = new Date().toISOString();
+
+    if (deleteResult && recomputeStandings) {
+        // Keep the season standings consistent with the remaining imported rounds.
+        try {
+            const rows = await listCnaEventResultSummariesBySeriesSeason({
+                seriesKey: parsed.seriesKey,
+                seasonKey: parsed.seasonKey,
+            });
+
+            const standings = computeSeriesStandings({
+                seriesKey: parsed.seriesKey,
+                seasonKey: parsed.seasonKey,
+                events: rows.map((r) => ({ eventId: r.eventId, raceResults: r.raceResults })),
+                nowIso,
+            });
+
+            await upsertCnaSeriesStandings({
+                seriesKey: parsed.seriesKey,
+                seasonKey: parsed.seasonKey,
+                data: standings,
+                updatedAt: nowIso,
+            });
+        } catch (e) {
+            return jsonError(500, "server_error", e instanceof Error ? e.message : "Failed to recompute standings.");
+        }
+    }
+
+    return NextResponse.json({
+        ok: true,
+        deleted: {
+            eventId,
+            deleteSource,
+            deleteResult,
+            deletedSource,
+            deletedResult,
+        },
+        standingsRecomputed: Boolean(deleteResult && recomputeStandings),
+        requestedBy: { iracingCustId: admin.iracingCustId },
+        nowIso,
     });
 }

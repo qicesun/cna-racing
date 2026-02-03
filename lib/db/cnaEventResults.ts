@@ -214,3 +214,18 @@ export async function listCnaEventResults(limit = 200): Promise<CnaEventResult[]
         })
         .filter((x: CnaEventResult | null): x is CnaEventResult => x !== null);
 }
+
+export async function deleteCnaEventResultByEventId(eventId: string): Promise<boolean> {
+    const supabase = getSupabaseAdminClient();
+
+    const { data, error } = await supabase
+        .from(RESULTS_TABLE)
+        .delete()
+        .eq("event_id", eventId)
+        .select("event_id")
+        .limit(1);
+
+    if (error) fail("Supabase delete event result failed", error);
+
+    return Array.isArray(data) && data.length > 0;
+}
