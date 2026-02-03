@@ -1,9 +1,7 @@
-import fs from "fs/promises";
-import path from "path";
 import Link from "next/link";
 
 import { rookie } from "@/data/rookie";
-import { deriveSeasonKey, listAllEvents } from "@/lib/events/catalog";
+import { deriveSeasonKey, getEventById, listAllEvents } from "@/lib/events/catalog";
 import {
     unwrapIRacingEvent,
     getSession,
@@ -12,26 +10,10 @@ import {
     msToClock,
     formatLocal,
 } from "@/lib/iracingResult";
-import { listResolvedEventResultsBySeriesSeason } from "@/lib/results/resolvedEventResults";
+import { getResolvedEventResultByEventId, listResolvedEventResultsBySeriesSeason } from "@/lib/results/resolvedEventResults";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-type IndexEntry = {
-    id: string | number;
-    title: string;
-    date?: string;
-    track?: string; // 优先用 index 的
-    layout?: string;
-    file: string; // "/rookie/results/preseason_81610301.json"
-    cover?: string; // "/rookie/covers/navarra.png"
-};
-
-async function readJsonFromPublic<T>(publicPath: string): Promise<T> {
-    const full = path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
-    const raw = await fs.readFile(full, "utf-8");
-    return JSON.parse(raw) as T;
-}
 
 function normalizeCarName(name?: string) {
     return (name ?? "").toLowerCase().trim();
@@ -94,8 +76,6 @@ function isPast(start?: string) {
 }
 
 export default async function RookieResultsListPage() {
-    const index = await readJsonFromPublic<IndexEntry[]>("/rookie/results/index.json");
-
     const seriesKey = "rookie";
     const seasonKey = deriveSeasonKey(rookie.seasonName);
 
@@ -106,27 +86,53 @@ export default async function RookieResultsListPage() {
     const resolved = await listResolvedEventResultsBySeriesSeason({ seriesKey, seasonKey });
     const resolvedByEventId = new Map(resolved.map((r) => [r.eventId, r]));
 
-    const cards = await Promise.all(
-        index.map(async (e) => {
-            const id = String(e.id).trim();
+    const cards: Array<{
+        eventId: string;
+        title: string;
+        series: string;
+        start: string | null;
+        finished: boolean;
+        trackName: string;
+        layout: string;
+        cover: string | null;
+        top3: any[];
+    }> = (
+        await Promise.all(
+            resolved.map(async (r) => {
+                const full = await getResolvedEventResultByEventId(r.eventId);
+                if (!full) return null;
 
-            const json = await readJsonFromPublic<any>(e.file);
-            const data = unwrapIRacingEvent(json);
+                const event = getEventById(r.eventId);
+                const cover = event?.cover ?? null;
 
-            const series = data?.series_name ?? "CNA 新手赛";
-            const start = data?.start_time;
-            const finished = isPast(start);
+                const data = unwrapIRacingEvent(full.rawJson);
+                if (!data) return null;
 
-            const trackName = e.track?.trim() || data?.track?.track_name || "Unknown Track";
-            const layout = e.layout?.trim() || data?.track?.config_name || "Layout";
+                const series = data?.series_name ?? event?.seriesName ?? "CNA ???";
+                const start = data?.start_time ?? full.startTime ?? event?.start ?? null;
+                const finished = isPast(start ?? undefined);
 
-            const race = data ? getSession(data, "RACE") : null;
-            const sorted = race ? sortByFinishPosition(race.results ?? []) : [];
-            const top3 = sorted.slice(0, 3);
+                const trackName = data?.track?.track_name ?? event?.track ?? full.trackName ?? "Unknown Track";
+                const layout = data?.track?.config_name ?? "Layout";
 
-            return { entry: e, id, series, start, finished, trackName, layout, top3 };
-        })
-    );
+                const race = getSession(data, "RACE");
+                const sorted = race ? sortByFinishPosition(race.results ?? []) : [];
+                const top3 = sorted.slice(0, 3);
+
+                return {
+                    eventId: r.eventId,
+                    title: event ? event.seriesName + " | Round " + event.round + " | " + event.track : r.eventId,
+                    series,
+                    start,
+                    finished,
+                    trackName,
+                    layout,
+                    cover,
+                    top3,
+                };
+            })
+        )
+    ).filter((c): c is NonNullable<typeof c> => Boolean(c));
 
     // start_time 新->旧
     cards.sort((a, b) => {
@@ -184,7 +190,21 @@ export default async function RookieResultsListPage() {
                                 return (
                                     <tr key={e.eventId} className="border-b border-white/5 hover:bg-white/5">
                                         <td className="px-4 py-3 text-zinc-200 font-semibold">{e.round}</td>
-                                        <td className="px-4 py-3 text-zinc-200">{e.track}</td>
+                                        <td className="px-4 py-3 text-zinc-200">
+                                            <div className="flex items-center gap-3">
+                                                {e.cover ? (
+                                                    <img
+                                                        src={e.cover}
+                                                        alt={e.track}
+                                                        className="h-10 w-[64px] rounded-md object-cover opacity-90"
+                                                        loading="lazy"
+                                                    />
+                                                ) : (
+                                                    <div className="h-10 w-[64px] rounded-md bg-white/10" />
+                                                )}
+                                                <span className="truncate">{e.track}</span>
+                                            </div>
+                                        </td>
                                         <td className="px-4 py-3 text-zinc-200">{formatLocal(e.start)}</td>
                                         <td className="px-4 py-3 text-zinc-200">
                                             {r ? (r.source === "db" ? "DB" : "JSON") : <span className="text-zinc-500">—</span>}
@@ -220,11 +240,11 @@ export default async function RookieResultsListPage() {
 
                 <div className="mt-10 grid gap-7 md:grid-cols-2 xl:grid-cols-3">
                     {cards.map((c) => {
-                        const href = `/rookie/results/${c.id}`;
+                        const href = `/rookie/results/${encodeURIComponent(c.eventId)}`;
 
                         return (
                             <Link
-                                key={c.id}
+                                key={c.eventId}
                                 href={href}
                                 className={[
                                     "block overflow-hidden rounded-[28px] border border-white/10 bg-white/5",
@@ -234,10 +254,10 @@ export default async function RookieResultsListPage() {
                             >
                                 {/* Top image */}
                                 <div className="relative h-56">
-                                    {c.entry.cover ? (
+                                    {c.cover ? (
                                         <div
                                             className="absolute inset-0 bg-cover bg-center"
-                                            style={{ backgroundImage: `url('${c.entry.cover}')` }}
+                                            style={{ backgroundImage: `url('${c.cover}')` }}
                                         />
                                     ) : (
                                         <div className="absolute inset-0 bg-zinc-800" />
@@ -262,7 +282,7 @@ export default async function RookieResultsListPage() {
                     </span>
                                         <span className="inline-flex items-center gap-2">
                       <span>🕒</span>
-                      <span>{formatLocal(c.start)}</span>
+                      <span>{formatLocal(c.start ?? undefined)}</span>
                     </span>
                                     </div>
 
@@ -277,7 +297,7 @@ export default async function RookieResultsListPage() {
                                         {c.top3.length === 0 ? (
                                             <div className="px-6 py-6 text-sm text-zinc-600">
                                                 No RACE results found
-                                                <div className="mt-2 text-xs text-zinc-500">ID: {c.id}</div>
+                                                <div className="mt-2 text-xs text-zinc-500">ID: {c.eventId}</div>
                                             </div>
                                         ) : (
                                             c.top3.map((r: any) => {
@@ -286,7 +306,7 @@ export default async function RookieResultsListPage() {
 
                                                 return (
                                                     <div
-                                                        key={`${c.id}-${r.cust_id}-${r.finish_position ?? r.position}`}
+                                                        key={`${c.eventId}-${r.cust_id}-${r.finish_position ?? r.position}`}
                                                         className="px-6 py-4 flex items-center justify-between gap-4"
                                                     >
                                                         <div className="flex items-center gap-4 min-w-0">
@@ -326,7 +346,7 @@ export default async function RookieResultsListPage() {
 
                                     <div className="px-6 py-3 text-[12px] text-zinc-600 flex items-center justify-between">
                                         <span className="font-medium">{c.finished ? "Finished" : "Upcoming/Running"}</span>
-                                        <span className="truncate max-w-[60%]">{c.entry.title}</span>
+                                        <span className="truncate max-w-[60%]">{c.title}</span>
                                     </div>
                                 </div>
                             </Link>
@@ -336,7 +356,7 @@ export default async function RookieResultsListPage() {
 
                 {cards.length === 0 && (
                     <div className="mt-12 rounded-2xl border border-white/10 bg-white/5 p-8 text-zinc-300">
-                        index.json 里还没有任何比赛条目。
+                        ??????????????? DB ??? public JSON??
                     </div>
                 )}
             </div>

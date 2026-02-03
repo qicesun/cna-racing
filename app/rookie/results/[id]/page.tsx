@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import Link from "next/link";
+import { getEventById } from "@/lib/events/catalog";
 import {
     unwrapIRacingEvent,
     getSession,
@@ -86,6 +87,7 @@ export default async function RookieResultDetailPage({
         const layout = data?.track?.config_name || "Layout";
         const series = data?.series_name ?? "CNA 新手赛";
         const start = data?.start_time ?? undefined;
+        const cover = getEventById(routeId)?.cover ?? null;
 
         const practice = getSession(data, "PRACTICE");
         const quali = getSession(data, "QUALIFY");
@@ -126,6 +128,16 @@ export default async function RookieResultDetailPage({
                             ← Back
                         </Link>
                     </div>
+
+                    {/* Cover (from static schedule trackKey) */}
+                    {cover && (
+                        <div className="mt-8 overflow-hidden rounded-3xl border border-white/10">
+                            <div
+                                className="h-56 md:h-72 bg-cover bg-center"
+                                style={{ backgroundImage: `url('${cover}')` }}
+                            />
+                        </div>
+                    )}
 
                     <ResultsTabs
                         practiceTitle="PRACTICE"

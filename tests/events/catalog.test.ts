@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveSeasonKey, getEventById, makeEventId, normalizeEventId, parseEventId } from "@/lib/events/catalog";
+import { coverFromTrackKey, deriveSeasonKey, getEventById, makeEventId, normalizeEventId, parseEventId } from "@/lib/events/catalog";
 
 describe("lib/events/catalog", () => {
     it("derives a stable season key for CNA seasons", () => {
@@ -30,5 +30,12 @@ describe("lib/events/catalog", () => {
         expect(event?.eventId).toBe(id);
         expect(event?.seriesKey).toBe("gt3open");
         expect(event?.round).toBe(1);
+        expect(event?.trackKey).toBe("imola");
+        expect(event?.cover).toBe("/tracks/imola.png");
+    });
+
+    it("builds cover paths from track keys", () => {
+        expect(coverFromTrackKey("suzuka")).toBe("/tracks/suzuka.png");
+        expect(coverFromTrackKey()).toBeNull();
     });
 });

@@ -9,6 +9,8 @@ export type Event = {
     seasonKey: string;
     round: number;
     track: string;
+    trackKey?: string;
+    cover: string | null; // preferred cover derived from trackKey (e.g. /tracks/suzuka.png)
     start: string;
     format?: string;
     note?: string;
@@ -21,12 +23,19 @@ type SeriesData = {
     races: Array<{
         round: number;
         track: string;
+        trackKey?: string;
         start: string;
         format?: string;
         note?: string;
         broadcast?: string;
     }>;
 };
+
+export function coverFromTrackKey(trackKey?: string): string | null {
+    if (!trackKey) return null;
+    // Keep this purely string-based so it works in server + client code (no fs checks).
+    return `/tracks/${trackKey}.png`;
+}
 
 function slugifyKey(input: string): string {
     return (
@@ -92,6 +101,8 @@ export function listAllEvents(): Event[] {
                 seasonKey,
                 round: r.round,
                 track: r.track,
+                trackKey: r.trackKey,
+                cover: coverFromTrackKey(r.trackKey),
                 start: r.start,
                 format: r.format,
                 note: r.note,
