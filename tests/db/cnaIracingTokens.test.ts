@@ -93,6 +93,23 @@ describe("lib/db/cnaIracingTokens", () => {
         }
     });
 
+    it("throws on upsert errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.upsert = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(
+            upsertCnaIracingTokens({
+                iracingCustId: 1,
+                accessToken: "ACCESS",
+                accessExpiresAt: "t",
+                refreshTokenEnc: null,
+                refreshExpiresAt: null,
+                scope: null,
+            })
+        ).rejects.toThrow(/upsert iRacing tokens failed/i);
+    });
+
     it("gets tokens by cust id and maps fields", async () => {
         const { client, responses } = makeSupabaseClientMock();
         responses.get = {
@@ -122,6 +139,22 @@ describe("lib/db/cnaIracingTokens", () => {
         });
     });
 
+    it("returns null when get row is malformed", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = { error: null, data: [{ iracing_cust_id: "nope", access_token: null }] };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaIracingTokensByCustId(1)).resolves.toBeNull();
+    });
+
+    it("throws on get errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaIracingTokensByCustId(1)).rejects.toThrow(/get iRacing tokens failed/i);
+    });
+
     it("deletes tokens by cust id", async () => {
         const { client, calls, responses } = makeSupabaseClientMock();
         responses.delete = { error: null };
@@ -135,5 +168,12 @@ describe("lib/db/cnaIracingTokens", () => {
         expect(eqCall?.column).toBe("iracing_cust_id");
         expect(eqCall?.value).toBe(15535);
     });
-});
 
+    it("throws on delete errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.delete = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(deleteCnaIracingTokensByCustId(1)).rejects.toThrow(/delete iRacing tokens failed/i);
+    });
+});

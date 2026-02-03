@@ -143,5 +143,134 @@ describe("lib/signup/supabaseStore", () => {
         const store = createSupabaseSignupStore();
         await expect(store.deleteSignup("gt3open:26S1:1", 1)).resolves.toEqual({ deleted: true });
     });
-});
 
+    it("throws on upsertUser errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_users.upsert = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.upsertUser({ iracingCustId: 1, iracingName: "A" })).rejects.toThrow(/upsert user failed/i);
+    });
+
+    it("creates signups successfully", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_users.upsert = { error: null };
+        responses.cna_signups.insert = { error: null };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.createSignup("gt3open:26S1:1", { iracingCustId: 1, iracingName: "A" })).resolves.toEqual({
+            created: true,
+        });
+    });
+
+    it("throws on createSignup non-unique errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_users.upsert = { error: null };
+        responses.cna_signups.insert = { error: { code: "99999", message: "boom" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.createSignup("gt3open:26S1:1", { iracingCustId: 1, iracingName: "A" })).rejects.toThrow(
+            /create signup failed/i
+        );
+    });
+
+    it("returns deleted:false when delete count is 0 or null", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        responses.cna_signups.delete = { error: null, count: 0 };
+        const store1 = createSupabaseSignupStore();
+        await expect(store1.deleteSignup("gt3open:26S1:1", 1)).resolves.toEqual({ deleted: false });
+
+        responses.cna_signups.delete = { error: null, count: undefined as any };
+        const store2 = createSupabaseSignupStore();
+        await expect(store2.deleteSignup("gt3open:26S1:1", 1)).resolves.toEqual({ deleted: false });
+    });
+
+    it("throws on deleteSignup errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_signups.delete = { error: { message: "nope" }, count: 0 };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.deleteSignup("gt3open:26S1:1", 1)).rejects.toThrow(/delete signup failed/i);
+    });
+
+    it("filters invalid signup rows in listSignupsForEvent", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_signups.order = {
+            error: null,
+            data: [
+                { event_id: "gt3open:26S1:1", iracing_cust_id: "2", created_at: "t", user: { iracing_name: "B" } },
+                { event_id: "gt3open:26S1:1", iracing_cust_id: "NaN", created_at: "t", user: { iracing_name: "C" } },
+                { event_id: "gt3open:26S1:1", iracing_cust_id: 3, created_at: "t", user: null },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.listSignupsForEvent("gt3open:26S1:1")).resolves.toEqual([
+            {
+                eventId: "gt3open:26S1:1",
+                createdAt: "t",
+                user: { iracingCustId: 2, iracingName: "B" },
+            },
+        ]);
+    });
+
+    it("throws on listSignupsForEvent errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_signups.order = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.listSignupsForEvent("gt3open:26S1:1")).rejects.toThrow(/list signups failed/i);
+    });
+
+    it("listSignupRowsForEvents returns [] for empty eventIds", async () => {
+        const { client } = makeSupabaseClientMock();
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.listSignupRowsForEvents([])).resolves.toEqual([]);
+    });
+
+    it("throws on listSignupRowsForEvents errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_signups.in = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.listSignupRowsForEvents(["a"])).rejects.toThrow(/list signup rows failed/i);
+    });
+
+    it("lists signups for a user and maps fields", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_signups.order = {
+            error: null,
+            data: [
+                { event_id: "gt3open:26S1:1", created_at: "t1" },
+                { event_id: "gt3open:26S1:2", created_at: "t2" },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.listSignupsForUser(1)).resolves.toEqual([
+            { eventId: "gt3open:26S1:1", createdAt: "t1" },
+            { eventId: "gt3open:26S1:2", createdAt: "t2" },
+        ]);
+    });
+
+    it("throws on listSignupsForUser errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.cna_signups.order = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const store = createSupabaseSignupStore();
+        await expect(store.listSignupsForUser(1)).rejects.toThrow(/list user signups failed/i);
+    });
+});

@@ -86,6 +86,21 @@ describe("lib/db/cnaEventSources", () => {
         }
     });
 
+    it("throws on upsert errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.upsert = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(
+            upsertCnaEventSource({
+                eventId: "gt3open:26S1:8",
+                seriesKey: "gt3open",
+                subsessionId: 83007142,
+                createdBy: 1127717,
+            })
+        ).rejects.toThrow(/upsert event source failed/i);
+    });
+
     it("gets event source by event_id", async () => {
         const { client, responses } = makeSupabaseClientMock();
         responses.get = {
@@ -111,6 +126,34 @@ describe("lib/db/cnaEventSources", () => {
             createdAt: "x",
             updatedAt: "y",
         });
+    });
+
+    it("returns null when get row is malformed", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = {
+            error: null,
+            data: [
+                {
+                    event_id: "gt3open:26S1:8",
+                    series_key: "gt3open",
+                    subsession_id: "nope",
+                    created_by: null,
+                    created_at: "x",
+                    updated_at: "y",
+                },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaEventSourceByEventId("gt3open:26S1:8")).resolves.toBeNull();
+    });
+
+    it("throws on get errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaEventSourceByEventId("gt3open:26S1:8")).rejects.toThrow(/get event source failed/i);
     });
 
     it("lists event sources ordered by updated_at", async () => {
@@ -145,5 +188,28 @@ describe("lib/db/cnaEventSources", () => {
         const orderCall = calls.find((c) => c.table === "cna_event_sources" && c.op === "order");
         expect(orderCall).toBeTruthy();
     });
-});
 
+    it("filters invalid rows in list", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.list = {
+            error: null,
+            data: [
+                { event_id: "gt3open:26S1:9", series_key: "gt3open", subsession_id: 1, created_by: null, created_at: "x", updated_at: "y" },
+                { event_id: null, series_key: "gt3open", subsession_id: 2, created_by: null, created_at: "x", updated_at: "y" },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const rows = await listCnaEventSources(10);
+        expect(rows.length).toBe(1);
+        expect(rows[0].eventId).toBe("gt3open:26S1:9");
+    });
+
+    it("throws on list errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.list = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(listCnaEventSources(10)).rejects.toThrow(/list event sources failed/i);
+    });
+});

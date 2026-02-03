@@ -65,6 +65,7 @@ vi.mock("@/lib/db/supabaseAdmin", () => ({
 import {
     getCnaEventResultByEventId,
     listCnaEventResultsBySeriesSeason,
+    listCnaEventResults,
     upsertCnaEventResult,
 } from "@/lib/db/cnaEventResults";
 
@@ -128,6 +129,32 @@ describe("lib/db/cnaEventResults", () => {
         });
     });
 
+    it("returns null when get row is malformed", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = {
+            error: null,
+            data: [
+                {
+                    event_id: 123, // invalid
+                    series_key: "gt3open",
+                    subsession_id: "nope",
+                    fetched_at: 123,
+                },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaEventResultByEventId("gt3open:26S1:8")).resolves.toBeNull();
+    });
+
+    it("throws on get errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaEventResultByEventId("gt3open:26S1:8")).rejects.toThrow(/get event result failed/i);
+    });
+
     it("lists event results by series + season using pattern match", async () => {
         const { client, calls, responses } = makeSupabaseClientMock();
         responses.list = {
@@ -155,5 +182,46 @@ describe("lib/db/cnaEventResults", () => {
         expect(likeCall.column).toBe("event_id");
         expect(likeCall.pattern).toBe("gt3open:26S1:%");
     });
-});
 
+    it("filters malformed rows in listCnaEventResultsBySeriesSeason", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.list = {
+            error: null,
+            data: [
+                { event_id: "gt3open:26S1:1", series_key: "gt3open", subsession_id: 1, fetched_at: "t", raw_json: {}, race_results: {} },
+                { event_id: null, series_key: "gt3open", subsession_id: 2, fetched_at: "t", raw_json: {}, race_results: {} },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const rows = await listCnaEventResultsBySeriesSeason({ seriesKey: "gt3open", seasonKey: "26S1" });
+        expect(rows.length).toBe(1);
+        expect(rows[0].eventId).toBe("gt3open:26S1:1");
+    });
+
+    it("throws on list errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.list = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(listCnaEventResultsBySeriesSeason({ seriesKey: "gt3open", seasonKey: "26S1" })).rejects.toThrow(
+            /list event results failed/i
+        );
+    });
+
+    it("lists event results ordered by fetched_at and filters bad rows", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.list = {
+            error: null,
+            data: [
+                { event_id: "gt3open:26S1:8", series_key: "gt3open", subsession_id: 1, fetched_at: "t", raw_json: {}, race_results: {} },
+                { event_id: "bad", series_key: null, subsession_id: 2, fetched_at: "t", raw_json: {}, race_results: {} },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const rows = await listCnaEventResults(10);
+        expect(rows.length).toBe(1);
+        expect(rows[0].eventId).toBe("gt3open:26S1:8");
+    });
+});

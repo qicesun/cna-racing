@@ -31,6 +31,11 @@ export default defineConfig({
                 "app/**/route.ts",
             ],
             exclude: ["**/*.d.ts"],
+            thresholds: {
+                // "vibe coding" safety rails: keep error branches covered.
+                lines: 90,
+                branches: 70,
+            },
         },
     },
 });

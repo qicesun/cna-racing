@@ -69,6 +69,21 @@ describe("lib/db/cnaSeriesStandings", () => {
         expect(upsertCall.payload.updated_at).toBe("2026-02-03T00:00:00.000Z");
     });
 
+    it("throws on upsert errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.upsert = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(
+            upsertCnaSeriesStandings({
+                seriesKey: "gt3open",
+                seasonKey: "26S1",
+                data: {},
+                updatedAt: "t",
+            })
+        ).rejects.toThrow(/upsert series standings failed/i);
+    });
+
     it("gets standings snapshot by (series_key, season_key)", async () => {
         const { client, responses } = makeSupabaseClientMock();
         responses.get = {
@@ -91,5 +106,30 @@ describe("lib/db/cnaSeriesStandings", () => {
             updatedAt: "2026-02-03T00:00:00.000Z",
         });
     });
-});
 
+    it("returns null when no standings row exists", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = { error: null, data: [] };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaSeriesStandings({ seriesKey: "gt3open", seasonKey: "26S1" })).resolves.toBeNull();
+    });
+
+    it("returns null when standings row is malformed", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = { error: null, data: [{ series_key: "gt3open", season_key: 123, updated_at: "t", data: {} }] };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaSeriesStandings({ seriesKey: "gt3open", seasonKey: "26S1" })).resolves.toBeNull();
+    });
+
+    it("throws on get errors", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.get = { error: { message: "nope" } };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        await expect(getCnaSeriesStandings({ seriesKey: "gt3open", seasonKey: "26S1" })).rejects.toThrow(
+            /get series standings failed/i
+        );
+    });
+});
