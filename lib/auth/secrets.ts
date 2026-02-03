@@ -25,3 +25,8 @@ export function getCnaOAuthCookieSecret(): string {
     return secret ?? getCnaSessionSecret();
 }
 
+export function getCnaTokenEncryptionSecret(): string {
+    // Optional separation-of-duties. If not set, fall back to the session secret.
+    const secret = getStrongSecret("CNA_TOKEN_ENC_SECRET");
+    return secret ?? getCnaSessionSecret();
+}

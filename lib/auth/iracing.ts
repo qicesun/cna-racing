@@ -122,6 +122,44 @@ export async function exchangeAuthorizationCodeForToken(params: {
     return json;
 }
 
+export async function refreshIracingToken(params: {
+    refreshToken: string;
+    scope?: "iracing.profile" | "iracing.auth";
+}): Promise<IracingTokenResponse> {
+    const cfg = getIracingOAuthConfig();
+
+    const form = new URLSearchParams();
+    form.set("grant_type", "refresh_token");
+    form.set("client_id", cfg.clientId);
+    form.set("refresh_token", params.refreshToken);
+
+    // Confidential server-side clients MUST provide the secret if issued.
+    if (cfg.clientSecret) {
+        form.set("client_secret", maskClientSecret(cfg.clientSecret, cfg.clientId));
+    }
+
+    const res = await fetch(`${cfg.baseUrl}/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+        cache: "no-store",
+    });
+
+    const json = (await res.json()) as IracingTokenResponse;
+    if (!res.ok) {
+        const code = json.error || "server_error";
+        const desc = json.error_description || `iRacing /token refresh failed with HTTP ${res.status}`;
+        throw new IracingOAuthError(code, desc);
+    }
+
+    // For safety: ensure the granted scope includes what we need.
+    if (params.scope && json.scope && !json.scope.split(/\s+/).includes(params.scope)) {
+        throw new Error(`iRacing token scope mismatch (got: ${json.scope})`);
+    }
+
+    return json;
+}
+
 export async function fetchIracingProfile(accessToken: string): Promise<IracingProfile> {
     const cfg = getIracingOAuthConfig();
 

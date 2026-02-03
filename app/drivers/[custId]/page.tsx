@@ -2,9 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import LocalTime from "@/components/LocalTime";
+import { getCurrentUser } from "@/lib/auth/currentUser";
 import { getCnaUserByCustId } from "@/lib/db/cnaUsers";
 import { getCnaUserProfile } from "@/lib/db/cnaUserProfiles";
 import { getDriverStatsFromResultsByCustId } from "@/lib/drivers/stats";
+import { getOrRefreshIracingMemberInfo } from "@/lib/iracing/memberInfoCache";
+import { selectSportsCarLicense } from "@/lib/iracing/memberInfo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,16 +27,21 @@ export default async function DriverProfilePage({ params }: Props) {
     const custId = safeNumber(rawCustId);
     if (!custId) notFound();
 
-    const [cnaUser, profile, stats] = await Promise.all([
+    const viewer = await getCurrentUser().catch(() => null);
+    const shouldRefreshIracing = viewer?.iracingCustId === custId;
+
+    const [cnaUser, profile, stats, memberInfo] = await Promise.all([
         getCnaUserByCustId(custId).catch(() => null),
         getCnaUserProfile(custId).catch(() => null),
         getDriverStatsFromResultsByCustId(custId).catch(() => null),
+        getOrRefreshIracingMemberInfo(custId, { refresh: shouldRefreshIracing }).catch(() => null),
     ]);
 
     if (!cnaUser && !stats) notFound();
 
     const displayName = profile?.nickname ?? cnaUser?.iracingName ?? stats?.name ?? "Driver";
     const iracingName = cnaUser?.iracingName ?? stats?.name ?? null;
+    const sportsCarLicense = memberInfo ? selectSportsCarLicense(memberInfo.info.licenses) : null;
 
     return (
         <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -127,6 +135,49 @@ export default async function DriverProfilePage({ params }: Props) {
                             )}
                         </div>
                     </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                        <div className="text-xs tracking-widest text-zinc-400">IRACING DATA</div>
+                        {memberInfo ? (
+                            <div className="mt-3 grid gap-2 text-sm text-zinc-200">
+                                {sportsCarLicense ? (
+                                    <>
+                                        <div>
+                                            Sports Car iRating:{" "}
+                                            <span className="font-semibold">
+                                                {sportsCarLicense.irating ?? "—"}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            Sports Car SR:{" "}
+                                            <span className="font-semibold">
+                                                {sportsCarLicense.safetyRating ?? "—"}
+                                            </span>
+                                        </div>
+                                        {sportsCarLicense.licenseClass && (
+                                            <div>
+                                                License:{" "}
+                                                <span className="font-semibold">
+                                                    {sportsCarLicense.licenseClass}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="text-zinc-400">暂无可用的 iRacing 许可信息。</div>
+                                )}
+
+                                <div className="text-xs text-zinc-500">
+                                    更新于: <LocalTime iso={memberInfo.fetchedAt} />{" "}
+                                    {memberInfo.stale ? <span>(可能已过期)</span> : null}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="mt-3 text-sm text-zinc-400">
+                                该车手尚未连接 iRacing 高级授权，或暂时无法读取官方数据。
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {cnaUser?.updatedAt && (
@@ -138,4 +189,3 @@ export default async function DriverProfilePage({ params }: Props) {
         </main>
     );
 }
-

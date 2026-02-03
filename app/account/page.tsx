@@ -1,9 +1,13 @@
 import Link from "next/link";
 
+import LocalTime from "@/components/LocalTime";
 import ProfileEditor from "@/components/ProfileEditor";
 import { getCurrentUser } from "@/lib/auth/currentUser";
+import { getCnaIracingTokensByCustId } from "@/lib/db/cnaIracingTokens";
 import { getCnaUserProfile } from "@/lib/db/cnaUserProfiles";
 import { getDriverStatsFromResultsByCustId } from "@/lib/drivers/stats";
+import { getOrRefreshIracingMemberInfo } from "@/lib/iracing/memberInfoCache";
+import { selectSportsCarLicense } from "@/lib/iracing/memberInfo";
 import type { EditableUserProfile } from "@/lib/user/profile";
 
 export const runtime = "nodejs";
@@ -30,6 +34,8 @@ export default async function AccountPage({ searchParams }: Props) {
 
     let profile: EditableUserProfile | null = null;
     let stats: Awaited<ReturnType<typeof getDriverStatsFromResultsByCustId>> | null = null;
+    let iracingConnected = false;
+    let memberInfo: Awaited<ReturnType<typeof getOrRefreshIracingMemberInfo>> | null = null;
 
     if (user) {
         try {
@@ -53,6 +59,19 @@ export default async function AccountPage({ searchParams }: Props) {
         } catch {
             stats = null;
         }
+
+        try {
+            const row = await getCnaIracingTokensByCustId(user.iracingCustId);
+            iracingConnected = !!row?.refreshTokenEnc;
+        } catch {
+            iracingConnected = false;
+        }
+
+        try {
+            memberInfo = await getOrRefreshIracingMemberInfo(user.iracingCustId, { refresh: true });
+        } catch {
+            memberInfo = null;
+        }
     }
 
     const initialProfile: EditableUserProfile = profile ?? {
@@ -63,6 +82,8 @@ export default async function AccountPage({ searchParams }: Props) {
         carNumber: null,
         links: [],
     };
+
+    const sportsCarLicense = memberInfo ? selectSportsCarLicense(memberInfo.info.licenses) : null;
 
     return (
         <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -115,6 +136,60 @@ export default async function AccountPage({ searchParams }: Props) {
                                     </div>
                                 </div>
                             )}
+
+                            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-zinc-200">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="text-xs tracking-widest text-zinc-400">IRACING DATA</div>
+                                    <Link
+                                        href="/oauth/connect?next=/account"
+                                        className="inline-flex rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 hover:bg-white/10"
+                                    >
+                                        {iracingConnected ? "重新连接（高级授权）" : "连接 iRacing 数据（高级授权）"}
+                                    </Link>
+                                </div>
+
+                                {memberInfo ? (
+                                    <div className="mt-3 grid gap-2">
+                                        {sportsCarLicense ? (
+                                            <>
+                                                <div>
+                                                    Sports Car iRating:{" "}
+                                                    <span className="font-semibold">
+                                                        {sportsCarLicense.irating ?? "—"}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    Sports Car SR:{" "}
+                                                    <span className="font-semibold">
+                                                        {sportsCarLicense.safetyRating ?? "—"}
+                                                    </span>
+                                                </div>
+                                                {sportsCarLicense.licenseClass && (
+                                                    <div>
+                                                        License:{" "}
+                                                        <span className="font-semibold">
+                                                            {sportsCarLicense.licenseClass}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <div className="text-zinc-400">暂无可用的 iRacing 许可信息。</div>
+                                        )}
+
+                                        <div className="text-xs text-zinc-500">
+                                            更新于: <LocalTime iso={memberInfo.fetchedAt} />{" "}
+                                            {memberInfo.stale ? <span>(可能已过期)</span> : null}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mt-3 text-zinc-400">
+                                        {iracingConnected
+                                            ? "暂时无法拉取 iRacing 官方数据。稍后刷新页面重试。"
+                                            : "未连接 iRacing 高级授权。连接后可展示更丰富的官方信息。"}
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="flex flex-wrap gap-2">
                                 <Link

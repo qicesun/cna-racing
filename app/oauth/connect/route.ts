@@ -15,23 +15,23 @@ import { sanitizeNextPath } from "@/lib/auth/utils";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// Starts an iRacing "Data API Workflow" authorization code flow (scope: iracing.auth).
 export async function GET(request: NextRequest) {
     const cfg = getIracingOAuthConfig();
 
-    // PKCE verifier is stored in a first-party cookie, so login+callback must happen on the same origin.
-    // If you're developing locally, ask iRacing to add your localhost/staging redirect URI first.
+    // PKCE verifier is stored in a first-party cookie, so connect+callback must happen on the same origin.
     const redirectOrigin = new URL(cfg.redirectUri).origin;
     if (request.nextUrl.origin !== redirectOrigin) {
         const redirect = new URL("/account", request.nextUrl.origin);
         redirect.searchParams.set("error", "invalid_request");
         redirect.searchParams.set(
             "error_description",
-            `OAuth redirect origin mismatch. Open ${redirectOrigin} to login, or register ${request.nextUrl.origin}${IRACING_OAUTH_COOKIE_PATH}/callback as a Redirect URI in iRacing.`
+            `OAuth redirect origin mismatch. Open ${redirectOrigin} to connect, or register ${request.nextUrl.origin}${IRACING_OAUTH_COOKIE_PATH}/callback as a Redirect URI in iRacing.`
         );
         return NextResponse.redirect(redirect);
     }
 
-    const nextPath = sanitizeNextPath(request.nextUrl.searchParams.get("next"));
+    const nextPath = sanitizeNextPath(request.nextUrl.searchParams.get("next") ?? "/account");
     const pkce = createPkcePair();
     const state = createState();
     const now = Date.now();
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         state,
         codeVerifier: pkce.verifier,
         next: nextPath,
-        scope: "iracing.profile",
+        scope: "iracing.auth",
         iat: now,
         exp: now + IRACING_OAUTH_MAX_AGE_SECONDS * 1000,
     };
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         baseUrl: cfg.baseUrl,
         clientId: cfg.clientId,
         redirectUri: cfg.redirectUri,
-        scope: "iracing.profile",
+        scope: "iracing.auth",
         state,
         codeChallenge: pkce.challenge,
         codeChallengeMethod: pkce.method,
@@ -68,3 +68,4 @@ export async function GET(request: NextRequest) {
 
     return res;
 }
+

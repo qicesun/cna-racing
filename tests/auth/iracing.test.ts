@@ -6,6 +6,7 @@ import {
     fetchIracingProfile,
     IracingOAuthError,
     maskClientSecret,
+    refreshIracingToken,
 } from "@/lib/auth/iracing";
 
 describe("lib/auth/iracing", () => {
@@ -116,6 +117,53 @@ describe("lib/auth/iracing", () => {
         } finally {
             vi.unstubAllGlobals();
             process.env.IRACING_OAUTH_BASE_URL = oldBaseUrl;
+        }
+    });
+
+    it("refreshIracingToken posts a masked secret", async () => {
+        const oldEnv = {
+            IRACING_OAUTH_BASE_URL: process.env.IRACING_OAUTH_BASE_URL,
+            IRACING_CLIENT_ID: process.env.IRACING_CLIENT_ID,
+            IRACING_CLIENT_SECRET: process.env.IRACING_CLIENT_SECRET,
+        };
+
+        process.env.IRACING_OAUTH_BASE_URL = "https://example.test/oauth2";
+        process.env.IRACING_CLIENT_ID = "cna-racing";
+        process.env.IRACING_CLIENT_SECRET = "secret";
+
+        const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+            expect(_url).toBe("https://example.test/oauth2/token");
+            expect(init?.method).toBe("POST");
+
+            const body = String(init?.body ?? "");
+            const masked = maskClientSecret("secret", "cna-racing");
+            expect(body).toContain(`client_secret=${encodeURIComponent(masked)}`);
+            expect(body).toContain("grant_type=refresh_token");
+            expect(body).toContain("client_id=cna-racing");
+            expect(body).toContain("refresh_token=REFRESH");
+
+            return new Response(
+                JSON.stringify({
+                    access_token: "ACCESS_2",
+                    refresh_token: "REFRESH_2",
+                    expires_in: 60,
+                    refresh_token_expires_in: 3600,
+                    scope: "iracing.auth",
+                }),
+                { status: 200, headers: { "Content-Type": "application/json" } }
+            );
+        });
+
+        vi.stubGlobal("fetch", fetchMock);
+
+        try {
+            const token = await refreshIracingToken({ refreshToken: "REFRESH", scope: "iracing.auth" });
+            expect(token.access_token).toBe("ACCESS_2");
+        } finally {
+            vi.unstubAllGlobals();
+            process.env.IRACING_OAUTH_BASE_URL = oldEnv.IRACING_OAUTH_BASE_URL;
+            process.env.IRACING_CLIENT_ID = oldEnv.IRACING_CLIENT_ID;
+            process.env.IRACING_CLIENT_SECRET = oldEnv.IRACING_CLIENT_SECRET;
         }
     });
 

@@ -31,3 +31,29 @@ create table if not exists cna_user_profiles (
 );
 
 create index if not exists cna_user_profiles_updated_at_idx on cna_user_profiles (updated_at);
+
+-- iRacing Data API Workflow (scope: iracing.auth).
+-- Tokens are stored server-side; refresh_token is encrypted at rest before persisting.
+create table if not exists cna_iracing_tokens (
+    iracing_cust_id bigint primary key references cna_users(iracing_cust_id) on delete cascade,
+    access_token text not null,
+    access_expires_at timestamptz not null,
+    refresh_token_enc text,
+    refresh_expires_at timestamptz,
+    scope text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index if not exists cna_iracing_tokens_access_expires_at_idx on cna_iracing_tokens (access_expires_at);
+create index if not exists cna_iracing_tokens_refresh_expires_at_idx on cna_iracing_tokens (refresh_expires_at);
+
+-- Cached /data/member/info response (publicly displayed on /drivers/[custId]).
+create table if not exists cna_iracing_member_info (
+    iracing_cust_id bigint primary key references cna_users(iracing_cust_id) on delete cascade,
+    data jsonb not null,
+    fetched_at timestamptz not null default now(),
+    expires_at timestamptz not null
+);
+
+create index if not exists cna_iracing_member_info_expires_at_idx on cna_iracing_member_info (expires_at);
