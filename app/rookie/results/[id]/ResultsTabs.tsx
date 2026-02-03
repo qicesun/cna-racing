@@ -4,10 +4,13 @@ import { useMemo, useState } from "react";
 import { msToClock, pos1 } from "@/lib/iracingResult";
 
 type Props = {
+    practiceTitle?: string;
     qualiTitle: string;
     raceTitle: string;
+    practiceSubtitle?: string;
     qualiSubtitle: string;
     raceSubtitle: string;
+    practiceRows?: any[];
     qualiRows: any[];
     raceRows: any[];
 };
@@ -55,10 +58,21 @@ function pointsValue(r: any) {
 }
 
 export default function ResultsTabs(props: Props) {
-    const [tab, setTab] = useState<"quali" | "race">("race");
+    const hasPractice = Array.isArray(props.practiceRows);
+    const [tab, setTab] = useState<"practice" | "quali" | "race">("race");
 
-    const rows = tab === "race" ? props.raceRows : props.qualiRows;
-    const subtitle = tab === "race" ? props.raceSubtitle : props.qualiSubtitle;
+    const rows =
+        tab === "race"
+            ? props.raceRows
+            : tab === "quali"
+                ? props.qualiRows
+                : props.practiceRows ?? [];
+    const subtitle =
+        tab === "race"
+            ? props.raceSubtitle
+            : tab === "quali"
+                ? props.qualiSubtitle
+                : props.practiceSubtitle ?? "Practice";
 
     const fastestLapMs = useMemo(() => {
         let best: number | null = null;
@@ -75,12 +89,29 @@ export default function ResultsTabs(props: Props) {
             <div className="flex flex-col gap-3 px-6 py-4 border-b border-white/10 md:flex-row md:items-center md:justify-between">
                 <div>
                     <div className="text-lg font-semibold text-zinc-100">
-                        {tab === "race" ? props.raceTitle : props.qualiTitle}
+                        {tab === "race"
+                            ? props.raceTitle
+                            : tab === "quali"
+                                ? props.qualiTitle
+                                : (props.practiceTitle ?? "PRACTICE")}
                     </div>
                     <div className="text-sm text-zinc-400">{subtitle}</div>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {hasPractice && (
+                        <button
+                            onClick={() => setTab("practice")}
+                            className={[
+                                "rounded-xl px-3 py-1.5 text-sm font-semibold transition",
+                                tab === "practice"
+                                    ? "bg-white text-zinc-950"
+                                    : "bg-white/10 text-zinc-200 hover:bg-white/15",
+                            ].join(" ")}
+                        >
+                            Practice
+                        </button>
+                    )}
                     <button
                         onClick={() => setTab("race")}
                         className={[
@@ -153,7 +184,7 @@ export default function ResultsTabs(props: Props) {
                                 </td>
 
                                 <td className="px-4 py-3 text-zinc-200 font-semibold">
-                                    {pointsValue(r)}
+                                    {tab === "race" ? pointsValue(r) : 0}
                                 </td>
                             </tr>
                         );

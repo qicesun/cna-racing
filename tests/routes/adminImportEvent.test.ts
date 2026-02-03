@@ -24,7 +24,7 @@ vi.mock("@/lib/db/cnaEventSources", () => ({
 
 vi.mock("@/lib/db/cnaEventResults", () => ({
     upsertCnaEventResult: vi.fn(),
-    listCnaEventResultsBySeriesSeason: vi.fn(),
+    listCnaEventResultSummariesBySeriesSeason: vi.fn(),
 }));
 
 vi.mock("@/lib/db/cnaSeriesStandings", () => ({
@@ -43,7 +43,7 @@ import { POST } from "@/app/api/admin/import-event/route";
 import { requireAdminUser } from "@/lib/auth/admin";
 import { getEventById } from "@/lib/events/catalog";
 import { getCnaEventSourceByEventId } from "@/lib/db/cnaEventSources";
-import { listCnaEventResultsBySeriesSeason, upsertCnaEventResult } from "@/lib/db/cnaEventResults";
+import { listCnaEventResultSummariesBySeriesSeason, upsertCnaEventResult } from "@/lib/db/cnaEventResults";
 import { upsertCnaSeriesStandings } from "@/lib/db/cnaSeriesStandings";
 import { fetchIracingSubsessionResult } from "@/lib/iracing/results";
 import { getValidIracingAuthAccessToken } from "@/lib/iracing/tokenStore";
@@ -162,12 +162,43 @@ describe("app/api/admin/import-event route", () => {
             updatedAt: "y",
         });
         vi.mocked(getValidIracingAuthAccessToken).mockResolvedValueOnce("token");
-        vi.mocked(fetchIracingSubsessionResult).mockResolvedValueOnce({}); // invalid payload -> parse error
+        vi.mocked(fetchIracingSubsessionResult).mockResolvedValueOnce({
+            data: { session_results: [] },
+        }); // missing RACE session results -> parse error
 
         const res = await POST({ json: async () => ({ eventId: "gt3open:26S1:8" }) } as any);
         expect(res.status).toBe(500);
         const body = await res.json();
         expect(body.error).toBe("parse_error");
+    });
+
+    it("returns 409 when validations fail (league mismatch)", async () => {
+        vi.mocked(requireAdminUser).mockResolvedValueOnce({ iracingCustId: 1127717, iracingName: "Admin" });
+        vi.mocked(getEventById).mockReturnValueOnce({ seriesKey: "gt3open" } as any);
+        vi.mocked(getCnaEventSourceByEventId).mockResolvedValueOnce({
+            eventId: "gt3open:26S1:8",
+            seriesKey: "gt3open",
+            subsessionId: 83007142,
+            createdBy: 1127717,
+            createdAt: "x",
+            updatedAt: "y",
+        });
+        vi.mocked(getValidIracingAuthAccessToken).mockResolvedValueOnce("token");
+
+        vi.mocked(fetchIracingSubsessionResult).mockResolvedValueOnce({
+            data: {
+                league_id: 99999,
+                track: { track_name: "Suzuka" },
+                session_results: [
+                    { simsession_number: 0, simsession_name: "RACE", results: [{ cust_id: 1, display_name: "A", finish_position: 0 }] },
+                ],
+            },
+        });
+
+        const res = await POST({ json: async () => ({ eventId: "gt3open:26S1:8" }) } as any);
+        expect(res.status).toBe(409);
+        const body = await res.json();
+        expect(body.error).toBe("validation_failed");
     });
 
     it("returns 500 when persisting event result fails", async () => {
@@ -222,7 +253,7 @@ describe("app/api/admin/import-event route", () => {
         };
         vi.mocked(fetchIracingSubsessionResult).mockResolvedValueOnce(raw);
         vi.mocked(upsertCnaEventResult).mockResolvedValueOnce(undefined);
-        vi.mocked(listCnaEventResultsBySeriesSeason).mockRejectedValueOnce(new Error("list failed"));
+        vi.mocked(listCnaEventResultSummariesBySeriesSeason).mockRejectedValueOnce(new Error("list failed"));
 
         const res = await POST({ json: async () => ({ eventId: "gt3open:26S1:8" }) } as any);
         expect(res.status).toBe(500);
@@ -260,7 +291,7 @@ describe("app/api/admin/import-event route", () => {
         vi.mocked(fetchIracingSubsessionResult).mockResolvedValueOnce(raw);
 
         const parsed = parseIracingRaceResult(raw);
-        vi.mocked(listCnaEventResultsBySeriesSeason).mockResolvedValueOnce([
+        vi.mocked(listCnaEventResultSummariesBySeriesSeason).mockResolvedValueOnce([
             {
                 eventId: "gt3open:26S1:8",
                 raceResults: parsed.raceResults,

@@ -4,10 +4,13 @@ import { useMemo, useState } from "react";
 import { msToClock } from "@/lib/iracingResult";
 
 type Props = {
+    practiceTitle?: string;
     qualiTitle: string;
     raceTitle: string;
+    practiceSubtitle?: string;
     qualiSubtitle: string;
     raceSubtitle: string;
+    practiceRows?: any[];
     qualiRows: any[];
     raceRows: any[];
 };
@@ -59,18 +62,22 @@ function getPoints(row: any) {
 }
 
 export default function ResultsTabs({
+    practiceTitle,
                                         qualiTitle,
                                         raceTitle,
+    practiceSubtitle,
                                         qualiSubtitle,
                                         raceSubtitle,
+    practiceRows,
                                         qualiRows,
                                         raceRows,
                                     }: Props) {
-    const [tab, setTab] = useState<"RACE" | "QUALIFY">("RACE");
+    const hasPractice = Array.isArray(practiceRows);
+    const [tab, setTab] = useState<"RACE" | "QUALIFY" | "PRACTICE">("RACE");
 
-    const rows = tab === "RACE" ? raceRows : qualiRows;
-    const subtitle = tab === "RACE" ? raceSubtitle : qualiSubtitle;
-    const title = tab === "RACE" ? raceTitle : qualiTitle;
+    const rows = tab === "RACE" ? raceRows : tab === "QUALIFY" ? qualiRows : practiceRows ?? [];
+    const subtitle = tab === "RACE" ? raceSubtitle : tab === "QUALIFY" ? qualiSubtitle : (practiceSubtitle ?? "Practice");
+    const title = tab === "RACE" ? raceTitle : tab === "QUALIFY" ? qualiTitle : (practiceTitle ?? "PRACTICE");
 
     // 找最快圈（用于紫色）
     const fastestBestLapMs = useMemo(() => {
@@ -89,6 +96,19 @@ export default function ResultsTabs({
         <div className="mt-10">
             {/* Tabs */}
             <div className="flex items-center justify-end gap-2">
+                {hasPractice && (
+                    <button
+                        onClick={() => setTab("PRACTICE")}
+                        className={[
+                            "rounded-xl px-4 py-2 text-sm font-semibold border transition",
+                            tab === "PRACTICE"
+                                ? "bg-white text-zinc-950 border-white"
+                                : "bg-white/5 text-zinc-200 border-white/15 hover:bg-white/10",
+                        ].join(" ")}
+                    >
+                        Practice
+                    </button>
+                )}
                 <button
                     onClick={() => setTab("RACE")}
                     className={[

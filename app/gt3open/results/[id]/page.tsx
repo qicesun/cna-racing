@@ -87,9 +87,11 @@ export default async function GT3ResultDetailPage({
         const series = data?.series_name ?? "GT3 Open";
         const start = data?.start_time ?? undefined;
 
+        const practice = getSession(data, "PRACTICE");
         const quali = getSession(data, "QUALIFY");
         const race = getSession(data, "RACE");
 
+        const practiceRows = practice ? sortByFinishPosition(practice.results ?? []) : undefined;
         const raceRows = race ? sortByFinishPosition(race.results ?? []) : [];
         const qualiRows = quali ? sortByFinishPosition(quali.results ?? []) : [];
 
@@ -126,10 +128,13 @@ export default async function GT3ResultDetailPage({
                     </div>
 
                     <ResultsTabs
+                        practiceTitle="PRACTICE"
                         qualiTitle="QUALIFY"
                         raceTitle="RACE"
+                        practiceSubtitle={practice?.simsession_type_name ?? "Practice"}
                         qualiSubtitle={quali?.simsession_type_name ?? "Qualifying"}
                         raceSubtitle={race?.simsession_type_name ?? "Race"}
+                        practiceRows={practiceRows}
                         qualiRows={qualiRows}
                         raceRows={raceRows}
                     />
@@ -193,9 +198,11 @@ export default async function GT3ResultDetailPage({
     const series = data?.series_name ?? "GT3 Open";
     const start = data?.start_time;
 
+    const practice = getSession(data, "PRACTICE");
     const quali = getSession(data, "QUALIFY");
     const race = getSession(data, "RACE");
 
+    const practiceRows = practice ? sortByFinishPosition(practice.results ?? []) : undefined;
     const raceRows = race ? sortByFinishPosition(race.results ?? []) : [];
     const qualiRows = quali ? sortByFinishPosition(quali.results ?? []) : [];
 
@@ -237,10 +244,13 @@ export default async function GT3ResultDetailPage({
 
                 {/* Tabs (client) */}
                 <ResultsTabs
+                    practiceTitle="PRACTICE"
                     qualiTitle="QUALIFY"
                     raceTitle="RACE"
+                    practiceSubtitle={practice?.simsession_type_name ?? "Practice"}
                     qualiSubtitle={quali?.simsession_type_name ?? "Qualifying"}
                     raceSubtitle={race?.simsession_type_name ?? "Race"}
+                    practiceRows={practiceRows}
                     qualiRows={qualiRows}
                     raceRows={raceRows}
                 />

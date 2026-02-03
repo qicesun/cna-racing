@@ -16,7 +16,7 @@ export type IRacingEventResult = {
     };
     session_results?: Array<{
         simsession_number: number;
-        simsession_name: string; // "QUALIFY" / "RACE"
+        simsession_name: string; // "PRACTICE" / "QUALIFY" / "RACE"
         simsession_type_name?: string; // "Race" / "Open Qualifying"
         results: Array<IRacingDriverRow>;
     }>;
@@ -81,7 +81,7 @@ export function isFinishedByStart(startIso?: string) {
     return Date.now() > t;
 }
 
-export function getSession(result: IRacingEventResult, name: "RACE" | "QUALIFY") {
+export function getSession(result: IRacingEventResult, name: "RACE" | "QUALIFY" | "PRACTICE") {
     const sessions = result.session_results ?? [];
     return sessions.find((s) => String(s.simsession_name).toUpperCase() === name) ?? null;
 }
