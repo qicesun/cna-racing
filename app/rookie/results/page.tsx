@@ -1,6 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
 import Link from "next/link";
+
+import { rookie } from "@/data/rookie";
+import { deriveSeasonKey, listAllEvents } from "@/lib/events/catalog";
 import {
     unwrapIRacingEvent,
     getSession,
@@ -9,6 +12,10 @@ import {
     msToClock,
     formatLocal,
 } from "@/lib/iracingResult";
+import { listResolvedEventResultsBySeriesSeason } from "@/lib/results/resolvedEventResults";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type IndexEntry = {
     id: string | number;
@@ -89,6 +96,16 @@ function isPast(start?: string) {
 export default async function RookieResultsListPage() {
     const index = await readJsonFromPublic<IndexEntry[]>("/rookie/results/index.json");
 
+    const seriesKey = "rookie";
+    const seasonKey = deriveSeasonKey(rookie.seasonName);
+
+    const seasonEvents = listAllEvents()
+        .filter((e) => e.seriesKey === seriesKey && e.seasonKey === seasonKey)
+        .sort((a, b) => a.round - b.round);
+
+    const resolved = await listResolvedEventResultsBySeriesSeason({ seriesKey, seasonKey });
+    const resolvedByEventId = new Map(resolved.map((r) => [r.eventId, r]));
+
     const cards = await Promise.all(
         index.map(async (e) => {
             const id = String(e.id).trim();
@@ -136,6 +153,69 @@ export default async function RookieResultsListPage() {
                     >
                         ← Back to Rookie
                     </Link>
+                </div>
+
+                {/* Round-based results (DB-first) */}
+                <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 overflow-hidden">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+                        <div className="text-lg font-semibold text-zinc-100">按 Round 查看结果</div>
+                        <div className="text-sm text-zinc-400">
+                            优先 DB 导入 · 缺失回退 public JSON
+                        </div>
+                    </div>
+
+                    <div className="overflow-auto">
+                        <table className="min-w-[900px] w-full text-sm">
+                            <thead className="sticky top-0 bg-zinc-950/95 backdrop-blur border-b border-white/10">
+                            <tr>
+                                <th className="px-4 py-3 text-left font-semibold text-zinc-200">Round</th>
+                                <th className="px-4 py-3 text-left font-semibold text-zinc-200">Track</th>
+                                <th className="px-4 py-3 text-left font-semibold text-zinc-200">Start</th>
+                                <th className="px-4 py-3 text-left font-semibold text-zinc-200">Source</th>
+                                <th className="px-4 py-3 text-left font-semibold text-zinc-200">Top 3</th>
+                                <th className="px-4 py-3 text-right font-semibold text-zinc-200">Link</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {seasonEvents.map((e) => {
+                                const r = resolvedByEventId.get(e.eventId) ?? null;
+                                const top3 = r?.raceResults?.results?.slice?.(0, 3) ?? [];
+
+                                return (
+                                    <tr key={e.eventId} className="border-b border-white/5 hover:bg-white/5">
+                                        <td className="px-4 py-3 text-zinc-200 font-semibold">{e.round}</td>
+                                        <td className="px-4 py-3 text-zinc-200">{e.track}</td>
+                                        <td className="px-4 py-3 text-zinc-200">{formatLocal(e.start)}</td>
+                                        <td className="px-4 py-3 text-zinc-200">
+                                            {r ? (r.source === "db" ? "DB" : "JSON") : <span className="text-zinc-500">—</span>}
+                                        </td>
+                                        <td className="px-4 py-3 text-zinc-200">
+                                            {top3.length ? (
+                                                <span className="truncate block max-w-[520px]">
+                                                    {top3.map((x: any, idx: number) => `#${idx + 1} ${x?.name ?? "—"}`).join(" · ")}
+                                                </span>
+                                            ) : (
+                                                <span className="text-zinc-500">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {r ? (
+                                                <Link
+                                                    href={`/rookie/results/${encodeURIComponent(e.eventId)}`}
+                                                    className="inline-flex rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-white/10"
+                                                >
+                                                    详情 →
+                                                </Link>
+                                            ) : (
+                                                <span className="text-xs text-zinc-500">未导入</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div className="mt-10 grid gap-7 md:grid-cols-2 xl:grid-cols-3">

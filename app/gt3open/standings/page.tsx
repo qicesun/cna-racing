@@ -1,34 +1,13 @@
-import fs from "fs/promises";
-import path from "path";
 import {
-    IRacingEventResultFile,
-    getSession,
-    sortByFinishPosition,
-} from "@/lib/iracingResult";
-import { defaultPoints, normalizeName, pointsForPosition } from "@/lib/points";
+    computeSeriesStandings,
+} from "@/lib/results/computeSeriesStandings";
 import { driverToTeam } from "@/data/teams";
-import { unwrapIRacingEvent } from "@/lib/iracingResult";
+import { gt3open } from "@/data/gt3open";
+import { deriveSeasonKey } from "@/lib/events/catalog";
+import { listResolvedEventResultsBySeriesSeason } from "@/lib/results/resolvedEventResults";
 
-type IndexEntry = {
-    id: string;
-    title: string;
-    date?: string;
-    track?: string;
-    layout?: string;
-    file: string;
-    cover?: string;
-};
-
-async function readJsonFromPublic<T>(publicPath: string): Promise<T | null> {
-    try {
-        const full = path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
-        const raw = await fs.readFile(full, "utf-8");
-        return JSON.parse(raw) as T;
-    } catch {
-        return null;
-    }
-}
-
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type DriverStanding = {
     driver: string;
@@ -40,64 +19,28 @@ type DriverStanding = {
 };
 
 export default async function GT3OpenStandingsPage() {
-    const index = (await readJsonFromPublic<IndexEntry[]>("/gt3open/results/index.json")) ?? [];
+    const seriesKey = "gt3open";
+    const seasonKey = deriveSeasonKey(gt3open.seasonName);
 
-    // --- Aggregate driver stats ---
-    const driverMap = new Map<string, DriverStanding>();
+    // Prefer imported DB results, but fall back to legacy public JSON (matched by start_time).
+    const resolved = await listResolvedEventResultsBySeriesSeason({ seriesKey, seasonKey });
 
-    for (const e of index) {
-        const json = await readJsonFromPublic<any>(e.file);
-        const data = unwrapIRacingEvent(json);
+    const snapshot = computeSeriesStandings({
+        seriesKey,
+        seasonKey,
+        events: resolved.map((r) => ({ eventId: r.eventId, raceResults: r.raceResults })),
+    });
 
-        if (!data) continue;
-
-        const race = getSession(data, "RACE");
-        if (!race?.results?.length) continue;
-
-        const rows = sortByFinishPosition(race.results);
-
-        rows.forEach((r, i) => {
-            const driver = normalizeName(r.display_name ?? "Unknown Driver");
-            const team = driverToTeam[driver] ?? "—";
-
-            const pos1 = i + 1; // after sorting, index is finish order
-            // ✅ 优先用 iRacing JSON 自带积分 champ_points
-// 若没有提供，则 fallback 到你自定义积分表
-            const jsonPoints =
-                typeof r.champ_points === "number" && Number.isFinite(r.champ_points)
-                    ? r.champ_points
-                    : null;
-
-            const pts = jsonPoints ?? pointsForPosition(pos1, defaultPoints);
-
-
-            const cur =
-                driverMap.get(driver) ??
-                ({
-                    driver,
-                    team,
-                    points: 0,
-                    starts: 0,
-                    wins: 0,
-                    podiums: 0,
-                } as DriverStanding);
-
-            cur.team = team; // keep latest mapping
-            cur.points += pts;
-            cur.starts += 1;
-            if (pos1 === 1) cur.wins += 1;
-            if (pos1 <= 3) cur.podiums += 1;
-
-            driverMap.set(driver, cur);
-        });
-    }
-
-    const drivers = Array.from(driverMap.values()).sort((a, b) => {
-        // points desc, then wins desc, then podiums desc, then name
-        if (b.points !== a.points) return b.points - a.points;
-        if (b.wins !== a.wins) return b.wins - a.wins;
-        if (b.podiums !== a.podiums) return b.podiums - a.podiums;
-        return a.driver.localeCompare(b.driver);
+    const drivers = snapshot.standings.map((s) => {
+        const team = driverToTeam[s.name] ?? "—";
+        return {
+            driver: s.name,
+            team,
+            points: s.points,
+            starts: s.starts,
+            wins: s.wins,
+            podiums: s.podiums,
+        } satisfies DriverStanding;
     });
 
     // --- Team standings (sum of drivers) ---
@@ -127,6 +70,9 @@ export default async function GT3OpenStandingsPage() {
                     <div>
                         <div className="text-xs tracking-widest text-zinc-400">CNA GT3 OPEN</div>
                         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Standings 积分榜</h1>
+                        <div className="mt-2 text-sm text-zinc-400">
+                            已计入 {snapshot.eventIds.length} 场比赛（优先 DB 导入结果；缺失时回退 public JSON）。
+                        </div>
                     </div>
                 </div>
 

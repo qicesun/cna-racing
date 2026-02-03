@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import LocalTime from "@/components/LocalTime";
 import ProfileEditor from "@/components/ProfileEditor";
+import { isAdminCustId } from "@/lib/auth/admin";
 import { getCurrentUser } from "@/lib/auth/currentUser";
 import { getCnaIracingTokensByCustId } from "@/lib/db/cnaIracingTokens";
 import { getCnaUserProfile } from "@/lib/db/cnaUserProfiles";
@@ -31,6 +32,7 @@ export default async function AccountPage({ searchParams }: Props) {
     const sp = await searchParams;
     const error = readParam(sp, "error");
     const errorDescription = readParam(sp, "error_description");
+    const isAdmin = user ? isAdminCustId(user.iracingCustId) : false;
 
     let profile: EditableUserProfile | null = null;
     let stats: Awaited<ReturnType<typeof getDriverStatsFromResultsByCustId>> | null = null;
@@ -198,6 +200,15 @@ export default async function AccountPage({ searchParams }: Props) {
                                 >
                                     查看我的公开主页
                                 </Link>
+
+                                {isAdmin && (
+                                    <Link
+                                        href="/admin/import"
+                                        className="inline-flex w-fit rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-white/10"
+                                    >
+                                        管理：导入比赛结果
+                                    </Link>
+                                )}
 
                                 <a
                                     href="/logout?next=/account"

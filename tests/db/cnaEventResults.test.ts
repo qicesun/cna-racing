@@ -65,6 +65,7 @@ vi.mock("@/lib/db/supabaseAdmin", () => ({
 import {
     getCnaEventResultByEventId,
     listCnaEventResultsBySeriesSeason,
+    listCnaEventResultSummariesBySeriesSeason,
     listCnaEventResults,
     upsertCnaEventResult,
 } from "@/lib/db/cnaEventResults";
@@ -195,6 +196,51 @@ describe("lib/db/cnaEventResults", () => {
         getSupabaseAdminClient.mockReturnValue(client);
 
         const rows = await listCnaEventResultsBySeriesSeason({ seriesKey: "gt3open", seasonKey: "26S1" });
+        expect(rows.length).toBe(1);
+        expect(rows[0].eventId).toBe("gt3open:26S1:1");
+    });
+
+    it("lists event result summaries by series + season without raw_json", async () => {
+        const { client, calls, responses } = makeSupabaseClientMock();
+        responses.list = {
+            error: null,
+            data: [
+                {
+                    event_id: "gt3open:26S1:8",
+                    series_key: "gt3open",
+                    subsession_id: "83007142",
+                    start_time: "2026-02-01T00:00:00Z",
+                    track_name: "Suzuka",
+                    race_results: { version: 1, results: [] },
+                    fetched_at: "2026-02-03T00:00:00.000Z",
+                },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const rows = await listCnaEventResultSummariesBySeriesSeason({ seriesKey: "gt3open", seasonKey: "26S1", limit: 10 });
+        expect(rows.length).toBe(1);
+        expect(rows[0].eventId).toBe("gt3open:26S1:8");
+        expect(rows[0].raceResults).toEqual({ version: 1, results: [] });
+
+        const selectCall = calls.find((c) => c.table === "cna_event_results" && c.op === "select");
+        expect(selectCall).toBeTruthy();
+        expect(selectCall.selection).toMatch(/race_results/);
+        expect(selectCall.selection).not.toMatch(/raw_json/);
+    });
+
+    it("filters malformed rows in listCnaEventResultSummariesBySeriesSeason", async () => {
+        const { client, responses } = makeSupabaseClientMock();
+        responses.list = {
+            error: null,
+            data: [
+                { event_id: "gt3open:26S1:1", series_key: "gt3open", subsession_id: 1, fetched_at: "t", race_results: {} },
+                { event_id: null, series_key: "gt3open", subsession_id: 2, fetched_at: "t", race_results: {} },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const rows = await listCnaEventResultSummariesBySeriesSeason({ seriesKey: "gt3open", seasonKey: "26S1" });
         expect(rows.length).toBe(1);
         expect(rows[0].eventId).toBe("gt3open:26S1:1");
     });

@@ -131,6 +131,57 @@ export async function listCnaEventResultsBySeriesSeason(params: {
         .filter((x: CnaEventResult | null): x is CnaEventResult => x !== null);
 }
 
+export type CnaEventResultSummary = {
+    eventId: string;
+    seriesKey: string;
+    subsessionId: number;
+    startTime: string | null;
+    trackName: string | null;
+    raceResults: unknown;
+    fetchedAt: string;
+};
+
+export async function listCnaEventResultSummariesBySeriesSeason(params: {
+    seriesKey: string;
+    seasonKey: string;
+    limit?: number;
+}): Promise<CnaEventResultSummary[]> {
+    const supabase = getSupabaseAdminClient();
+    const limit = params.limit ?? 200;
+
+    const pattern = `${params.seriesKey}:${params.seasonKey}:%`;
+
+    const { data, error } = await supabase
+        .from(RESULTS_TABLE)
+        .select("event_id, series_key, subsession_id, start_time, track_name, race_results, fetched_at")
+        .eq("series_key", params.seriesKey)
+        .like("event_id", pattern)
+        .order("event_id", { ascending: true })
+        .limit(limit);
+
+    if (error) fail("Supabase list event results failed", error);
+
+    return (data ?? [])
+        .map((row: any) => {
+            const eventId = typeof row.event_id === "string" ? row.event_id : null;
+            const seriesKey = typeof row.series_key === "string" ? row.series_key : null;
+            const subsessionId =
+                typeof row.subsession_id === "number" ? row.subsession_id : Number(row.subsession_id);
+            const fetchedAt = typeof row.fetched_at === "string" ? row.fetched_at : null;
+            if (!eventId || !seriesKey || !Number.isFinite(subsessionId) || !fetchedAt) return null;
+            return {
+                eventId,
+                seriesKey,
+                subsessionId,
+                startTime: typeof row.start_time === "string" ? row.start_time : null,
+                trackName: typeof row.track_name === "string" ? row.track_name : null,
+                raceResults: row.race_results ?? null,
+                fetchedAt,
+            } satisfies CnaEventResultSummary;
+        })
+        .filter((x: CnaEventResultSummary | null): x is CnaEventResultSummary => x !== null);
+}
+
 export async function listCnaEventResults(limit = 200): Promise<CnaEventResult[]> {
     const supabase = getSupabaseAdminClient();
 
@@ -163,4 +214,3 @@ export async function listCnaEventResults(limit = 200): Promise<CnaEventResult[]
         })
         .filter((x: CnaEventResult | null): x is CnaEventResult => x !== null);
 }
-
