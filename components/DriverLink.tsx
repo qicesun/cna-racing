@@ -42,6 +42,9 @@ type DriverSummary = {
 const summaryCache = new Map<number, DriverSummary>();
 const inflight = new Map<number, Promise<DriverSummary | null>>();
 
+const OPEN_DELAY_MS = 260;
+const CLOSE_DELAY_MS = 140;
+
 async function fetchDriverSummary(custId: number): Promise<DriverSummary | null> {
     const cached = summaryCache.get(custId);
     if (cached) return cached;
@@ -84,6 +87,7 @@ export default function DriverLink({ custId, name, className, hoverCard = true }
 
     const wrapRef = useRef<HTMLSpanElement | null>(null);
     const openTimer = useRef<number | null>(null);
+    const closeTimer = useRef<number | null>(null);
     const [mounted, setMounted] = useState(false);
     const [open, setOpen] = useState(false);
     const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -97,6 +101,7 @@ export default function DriverLink({ custId, name, className, hoverCard = true }
     useEffect(() => {
         return () => {
             if (openTimer.current) window.clearTimeout(openTimer.current);
+            if (closeTimer.current) window.clearTimeout(closeTimer.current);
         };
     }, []);
 
@@ -134,8 +139,21 @@ export default function DriverLink({ custId, name, className, hoverCard = true }
         return `查看车手主页 /drivers/${safeCustId}`;
     }, [name, safeCustId]);
 
-    const onEnter = () => {
+    const cancelClose = () => {
+        if (closeTimer.current) window.clearTimeout(closeTimer.current);
+        closeTimer.current = null;
+    };
+
+    const scheduleClose = () => {
+        cancelClose();
+        closeTimer.current = window.setTimeout(() => {
+            setOpen(false);
+        }, CLOSE_DELAY_MS);
+    };
+
+    const onTriggerEnter = () => {
         if (!hoverCard || !safeCustId) return;
+        cancelClose();
         if (openTimer.current) window.clearTimeout(openTimer.current);
         openTimer.current = window.setTimeout(async () => {
             setOpen(true);
@@ -148,13 +166,14 @@ export default function DriverLink({ custId, name, className, hoverCard = true }
             const s = await fetchDriverSummary(safeCustId);
             setSummary(s);
             setLoading(false);
-        }, 260);
+        }, OPEN_DELAY_MS);
     };
 
-    const onLeave = () => {
+    const onTriggerLeave = () => {
         if (openTimer.current) window.clearTimeout(openTimer.current);
         openTimer.current = null;
-        setOpen(false);
+        // Allow the cursor to move from the trigger to the popover without closing instantly.
+        scheduleClose();
     };
 
     const link = href ? (
@@ -166,7 +185,13 @@ export default function DriverLink({ custId, name, className, hoverCard = true }
     );
 
     return (
-        <span ref={wrapRef} onMouseEnter={onEnter} onMouseLeave={onLeave} onFocus={onEnter} onBlur={onLeave}>
+        <span
+            ref={wrapRef}
+            onMouseEnter={onTriggerEnter}
+            onMouseLeave={onTriggerLeave}
+            onFocus={onTriggerEnter}
+            onBlur={onTriggerLeave}
+        >
             {link}
             {mounted && open && safeCustId
                 ? createPortal(
@@ -175,6 +200,8 @@ export default function DriverLink({ custId, name, className, hoverCard = true }
                         style={{ top: pos.top, left: pos.left }}
                         role="dialog"
                         aria-label="Driver info"
+                        onMouseEnter={cancelClose}
+                        onMouseLeave={scheduleClose}
                     >
                         <div className="px-4 py-3 border-b border-white/10">
                             <div className="text-sm font-semibold text-white">
