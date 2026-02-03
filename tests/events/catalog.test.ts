@@ -38,4 +38,11 @@ describe("lib/events/catalog", () => {
         expect(coverFromTrackKey("suzuka")).toBe("/tracks/suzuka.png");
         expect(coverFromTrackKey()).toBeNull();
     });
+
+    it("propagates trackKey + cover for rookie rounds when configured", () => {
+        const id = makeEventId("rookie", deriveSeasonKey("Season 26S1"), 5);
+        const event = getEventById(id);
+        expect(event?.trackKey).toBe("summit");
+        expect(event?.cover).toBe("/tracks/summit.png");
+    });
 });

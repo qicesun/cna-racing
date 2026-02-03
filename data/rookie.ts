@@ -43,7 +43,8 @@ export const rookie = {
         },
         {
             round: 5,
-            track: "Circuit de Lédenon 勒德农",
+            track: "Summit Point Raceway 萨米特角",
+            trackKey: "summit",
             start: "2026-01-24T04:00:00Z",
             format: "MX-5 Cup · P(20min) + Q(20min) + R(20min)",
         },
