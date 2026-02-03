@@ -3,6 +3,7 @@ import path from "path";
 
 import DriversClient, { DriverProfile } from "./DriversClient";
 import { listCnaUsers } from "@/lib/db/cnaUsers";
+import { listCachedIracingSportsCarRatings } from "@/lib/iracing/memberInfoCache";
 import { defaultPoints, normalizeName, pointsForPosition } from "@/lib/points";
 import {
     getSession,
@@ -109,7 +110,7 @@ export default async function DriversPage() {
         const index = (await readJsonFromPublic<IndexEntry[]>(source.indexPath)) ?? [];
 
         for (const entry of index) {
-            const json = await readJsonFromPublic<IRacingEventResultFile | any>(entry.file);
+            const json = await readJsonFromPublic<IRacingEventResultFile | unknown>(entry.file);
             const data = unwrapIRacingEvent(json);
             if (!data) continue;
 
@@ -242,6 +243,27 @@ export default async function DriversPage() {
             }
             : null,
     }));
+
+    // Prefer cached iRacing Sports Car iR/SR (from Data API) when available.
+    // Never triggers refresh here to keep /drivers cheap; refresh happens on /account and /drivers/[custId].
+    try {
+        const ids = driverList
+            .map((d) => d.iracingCustId)
+            .filter((id): id is number => typeof id === "number" && Number.isFinite(id) && id > 0);
+
+        const ratings = await listCachedIracingSportsCarRatings(ids);
+        for (const d of driverList) {
+            const id = d.iracingCustId;
+            if (typeof id !== "number") continue;
+            const r = ratings.get(id);
+            if (!r) continue;
+
+            if (r.irating !== null) d.irating = r.irating;
+            if (r.safetyRating !== null) d.safetyRating = r.safetyRating;
+        }
+    } catch (e) {
+        console.error("listCachedIracingSportsCarRatings failed", e);
+    }
 
     driverList.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
 

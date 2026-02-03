@@ -67,3 +67,48 @@ export async function getCnaIracingMemberInfoByCustId(
     return { iracingCustId: custId, data: stored, fetchedAt, expiresAt };
 }
 
+export async function listCnaIracingMemberInfoByCustIds(
+    iracingCustIds: number[],
+    opts?: { chunkSize?: number }
+): Promise<CnaIracingMemberInfoRow[]> {
+    const ids = Array.from(
+        new Set(
+            (iracingCustIds ?? [])
+                .map((id) => (typeof id === "number" ? id : Number(id)))
+                .filter((id) => Number.isFinite(id) && id > 0)
+        )
+    );
+    if (ids.length === 0) return [];
+
+    const chunkSize = Math.max(1, Math.min(opts?.chunkSize ?? 200, 1000));
+    const supabase = getSupabaseAdminClient();
+
+    const out: CnaIracingMemberInfoRow[] = [];
+
+    for (let i = 0; i < ids.length; i += chunkSize) {
+        const slice = ids.slice(i, i + chunkSize);
+
+        const { data, error } = await supabase
+            .from(MEMBER_INFO_TABLE)
+            .select("iracing_cust_id, data, fetched_at, expires_at")
+            .in("iracing_cust_id", slice)
+            .limit(slice.length);
+
+        if (error) fail("Supabase list member info failed", error);
+
+        for (const row of data ?? []) {
+            const custId =
+                typeof (row as any).iracing_cust_id === "number"
+                    ? (row as any).iracing_cust_id
+                    : Number((row as any).iracing_cust_id);
+            const fetchedAt = typeof (row as any).fetched_at === "string" ? (row as any).fetched_at : null;
+            const expiresAt = typeof (row as any).expires_at === "string" ? (row as any).expires_at : null;
+            const stored = (row as any).data ?? null;
+
+            if (!Number.isFinite(custId) || !fetchedAt || !expiresAt) continue;
+            out.push({ iracingCustId: custId, data: stored, fetchedAt, expiresAt });
+        }
+    }
+
+    return out;
+}

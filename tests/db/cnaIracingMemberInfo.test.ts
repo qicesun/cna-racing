@@ -7,6 +7,8 @@ function makeSupabaseClientMock() {
     const responses: Record<string, SupabaseResponse> = {};
 
     class Builder {
+        private mode: "get" | "list" | null = null;
+
         constructor(private readonly table: string) {}
 
         upsert(payload: any, opts: any) {
@@ -21,12 +23,20 @@ function makeSupabaseClientMock() {
 
         eq(column: string, value: any) {
             calls.push({ table: this.table, op: "eq", column, value });
+            this.mode = "get";
+            return this;
+        }
+
+        in(column: string, values: any[]) {
+            calls.push({ table: this.table, op: "in", column, values });
+            this.mode = "list";
             return this;
         }
 
         limit(n: number) {
             calls.push({ table: this.table, op: "limit", n });
-            return Promise.resolve(responses.get ?? { data: [], error: null });
+            const key = this.mode ?? "get";
+            return Promise.resolve((responses as any)[key] ?? { data: [], error: null });
         }
     }
 
@@ -47,6 +57,7 @@ vi.mock("@/lib/db/supabaseAdmin", () => ({
 }));
 
 import { getCnaIracingMemberInfoByCustId, upsertCnaIracingMemberInfo } from "@/lib/db/cnaIracingMemberInfo";
+import { listCnaIracingMemberInfoByCustIds } from "@/lib/db/cnaIracingMemberInfo";
 
 describe("lib/db/cnaIracingMemberInfo", () => {
     it("upserts member info snapshot", async () => {
@@ -91,5 +102,46 @@ describe("lib/db/cnaIracingMemberInfo", () => {
             expiresAt: "2026-02-03T00:10:00.000Z",
         });
     });
-});
 
+    it("lists member info snapshots by cust ids", async () => {
+        const { client, calls, responses } = makeSupabaseClientMock();
+        responses.list = {
+            error: null,
+            data: [
+                {
+                    iracing_cust_id: 1,
+                    data: { custId: 1 },
+                    fetched_at: "2026-02-03T00:00:00.000Z",
+                    expires_at: "2026-02-03T00:10:00.000Z",
+                },
+                {
+                    iracing_cust_id: "2",
+                    data: { custId: 2 },
+                    fetched_at: "2026-02-03T00:00:00.000Z",
+                    expires_at: "2026-02-03T00:10:00.000Z",
+                },
+            ],
+        };
+        getSupabaseAdminClient.mockReturnValue(client);
+
+        const rows = await listCnaIracingMemberInfoByCustIds([1, 2, 2]);
+        expect(rows).toEqual([
+            {
+                iracingCustId: 1,
+                data: { custId: 1 },
+                fetchedAt: "2026-02-03T00:00:00.000Z",
+                expiresAt: "2026-02-03T00:10:00.000Z",
+            },
+            {
+                iracingCustId: 2,
+                data: { custId: 2 },
+                fetchedAt: "2026-02-03T00:00:00.000Z",
+                expiresAt: "2026-02-03T00:10:00.000Z",
+            },
+        ]);
+
+        const inCall = calls.find((c) => c.table === "cna_iracing_member_info" && c.op === "in");
+        expect(inCall).toBeTruthy();
+        expect(inCall.column).toBe("iracing_cust_id");
+    });
+});

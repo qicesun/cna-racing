@@ -83,7 +83,7 @@ export function normalizeIracingMemberInfo(raw: unknown): IracingMemberInfo | nu
 
 export function selectSportsCarLicense(licenses: IracingLicense[]): IracingLicense | null {
     if (!licenses.length) return null;
-    return licenses.find((l) => l.category === "sports_car" || l.categoryId === 5) ?? licenses[0];
+    return licenses.find((l) => l.category === "sports_car" || l.categoryId === 5) ?? null;
 }
 
 export async function fetchIracingMemberInfo(accessToken: string): Promise<IracingMemberInfo> {

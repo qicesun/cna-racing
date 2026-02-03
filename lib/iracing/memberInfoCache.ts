@@ -1,9 +1,15 @@
 import "server-only";
 
 import { getValidIracingAuthAccessToken } from "@/lib/iracing/tokenStore";
-import { fetchIracingMemberInfo, type IracingMemberInfo } from "@/lib/iracing/memberInfo";
+import {
+    fetchIracingMemberInfo,
+    normalizeIracingMemberInfo,
+    selectSportsCarLicense,
+    type IracingMemberInfo,
+} from "@/lib/iracing/memberInfo";
 import {
     getCnaIracingMemberInfoByCustId,
+    listCnaIracingMemberInfoByCustIds,
     upsertCnaIracingMemberInfo,
 } from "@/lib/db/cnaIracingMemberInfo";
 
@@ -20,6 +26,14 @@ function toIso(ms: number): string {
 
 export type IracingMemberInfoCacheResult = {
     info: IracingMemberInfo;
+    fetchedAt: string;
+    expiresAt: string;
+    stale: boolean;
+};
+
+export type IracingSportsCarRating = {
+    irating: number | null;
+    safetyRating: number | null;
     fetchedAt: string;
     expiresAt: string;
     stale: boolean;
@@ -73,3 +87,32 @@ export async function getOrRefreshIracingMemberInfo(
     }
 }
 
+// Bulk-read cached iRacing Sports Car iRating/SR without triggering refreshes.
+// Used by list pages (e.g. /drivers) to avoid N refreshes per request.
+export async function listCachedIracingSportsCarRatings(
+    iracingCustIds: number[]
+): Promise<Map<number, IracingSportsCarRating>> {
+    const rows = await listCnaIracingMemberInfoByCustIds(iracingCustIds);
+    const out = new Map<number, IracingSportsCarRating>();
+
+    for (const row of rows) {
+        const info = normalizeIracingMemberInfo(row.data);
+        if (!info) continue;
+
+        const license = selectSportsCarLicense(info.licenses);
+        if (!license) continue;
+
+        const expiresMs = parseMs(row.expiresAt);
+        const stale = expiresMs === null ? true : expiresMs <= Date.now();
+
+        out.set(info.custId, {
+            irating: license.irating ?? null,
+            safetyRating: license.safetyRating ?? null,
+            fetchedAt: row.fetchedAt,
+            expiresAt: row.expiresAt,
+            stale,
+        });
+    }
+
+    return out;
+}
