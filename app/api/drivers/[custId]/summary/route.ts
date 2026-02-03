@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { getCnaUserByCustId } from "@/lib/db/cnaUsers";
 import { getCnaUserProfile } from "@/lib/db/cnaUserProfiles";
 import { getDriverStatsFromResultsByCustId } from "@/lib/drivers/stats";
-import { aggregateDriverCnaSeasonStats, listDriverCnaSeasonStatsFromDb } from "@/lib/drivers/cnaSeasonStats";
 import { getCachedIracingMemberInfo } from "@/lib/iracing/memberInfoCache";
 import { selectSportsCarLicense } from "@/lib/iracing/memberInfo";
 
@@ -63,25 +62,17 @@ export async function GET(
     const custId = toPositiveInt(rawCustId);
     if (!custId) return jsonError(400, "invalid_request", "Invalid custId (expected positive integer).");
 
-    const [cnaUser, profile, publicStats, cnaSeasonStats, cachedMemberInfo] = await Promise.all([
+    const [cnaUser, profile, stats, cachedMemberInfo] = await Promise.all([
         getCnaUserByCustId(custId).catch(() => null),
         getCnaUserProfile(custId).catch(() => null),
         getDriverStatsFromResultsByCustId(custId).catch(() => null),
-        listDriverCnaSeasonStatsFromDb(custId).catch(() => []),
         getCachedIracingMemberInfo(custId).catch(() => null),
     ]);
 
-    const agg = aggregateDriverCnaSeasonStats(cnaSeasonStats);
-
-    // If we have imported season standings, prefer the DB name for consistency with the rest of the site (DB-first).
-    const iracingName =
-        cnaUser?.iracingName ??
-        (cnaSeasonStats.length ? agg.name : publicStats?.name) ??
-        agg.name ??
-        null;
+    const iracingName = cnaUser?.iracingName ?? stats?.name ?? null;
     const displayName = profile?.nickname ?? iracingName ?? "Driver";
 
-    const hasAnyData = Boolean(profile || cnaUser || publicStats || cnaSeasonStats.length > 0 || cachedMemberInfo);
+    const hasAnyData = Boolean(profile || cnaUser || stats || cachedMemberInfo);
     if (!hasAnyData) return jsonError(404, "not_found", "Driver not found.");
 
     const sportsCar = cachedMemberInfo ? selectSportsCarLicense(cachedMemberInfo.info.licenses) : null;
@@ -99,25 +90,23 @@ export async function GET(
                 carNumber: profile.carNumber ?? null,
             }
             : null,
-        cna:
-            cnaSeasonStats.length > 0 || publicStats
-                ? {
-                    // Prefer DB season stats when available; otherwise fall back to public JSON stats.
-                    points: cnaSeasonStats.length ? agg.points : publicStats?.points ?? 0,
-                    starts: cnaSeasonStats.length ? agg.starts : publicStats?.starts ?? 0,
-                    wins: cnaSeasonStats.length ? agg.wins : 0,
-                    podiums: cnaSeasonStats.length ? agg.podiums : 0,
-                    series: cnaSeasonStats.map((s) => ({
-                        seriesKey: s.seriesKey,
-                        seasonKey: s.seasonKey,
-                        points: s.points,
-                        starts: s.starts,
-                        wins: s.wins,
-                        podiums: s.podiums,
-                        updatedAt: s.updatedAt,
-                    })),
-                }
-                : null,
+        cna: stats
+            ? {
+                points: stats.points,
+                starts: stats.starts,
+                wins: stats.wins,
+                podiums: stats.podiums,
+                series: stats.seriesSeasons.map((s) => ({
+                    seriesKey: s.seriesKey,
+                    seasonKey: s.seasonKey,
+                    points: s.points,
+                    starts: s.starts,
+                    wins: s.wins,
+                    podiums: s.podiums,
+                    updatedAt: s.updatedAt,
+                })),
+            }
+            : null,
         iracing:
             cachedMemberInfo && sportsCar
                 ? {

@@ -173,7 +173,14 @@ export async function getResolvedEventResultByEventId(eventIdRaw: string): Promi
     const event = getEventById(eventIdRaw);
     if (!event) return null;
 
-    const dbRow = await getCnaEventResultByEventId(eventIdRaw);
+    let dbRow: Awaited<ReturnType<typeof getCnaEventResultByEventId>> = null;
+    try {
+        dbRow = await getCnaEventResultByEventId(eventIdRaw);
+    } catch (e) {
+        // DB is optional for local development; fall back to legacy public JSON when unavailable.
+        console.error("getCnaEventResultByEventId failed (falling back to static)", eventIdRaw, e);
+        dbRow = null;
+    }
     const fromDb = toResolvedFromDbRow(dbRow, eventIdRaw);
     if (fromDb) return fromDb;
 
@@ -204,10 +211,17 @@ export async function listResolvedEventResultsBySeriesSeason(params: {
         .filter((e) => e.seriesKey === params.seriesKey && e.seasonKey === params.seasonKey)
         .sort((a, b) => a.round - b.round);
 
-    const dbRows = await listCnaEventResultSummariesBySeriesSeason({
-        seriesKey: params.seriesKey,
-        seasonKey: params.seasonKey,
-    });
+    let dbRows: CnaEventResultSummary[] = [];
+    try {
+        dbRows = await listCnaEventResultSummariesBySeriesSeason({
+            seriesKey: params.seriesKey,
+            seasonKey: params.seasonKey,
+        });
+    } catch (e) {
+        // DB is optional for local development; fall back to legacy public JSON when unavailable.
+        console.error("listCnaEventResultSummariesBySeriesSeason failed (falling back to static)", params, e);
+        dbRows = [];
+    }
     const dbByEventId = new Map(dbRows.map((r) => [r.eventId, r]));
 
     const staticMap = await buildStaticResultMap({ seriesKey: params.seriesKey, seasonKey: params.seasonKey });

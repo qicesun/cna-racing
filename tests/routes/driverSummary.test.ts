@@ -12,11 +12,6 @@ vi.mock("@/lib/drivers/stats", () => ({
     getDriverStatsFromResultsByCustId: vi.fn(),
 }));
 
-vi.mock("@/lib/drivers/cnaSeasonStats", () => ({
-    listDriverCnaSeasonStatsFromDb: vi.fn(),
-    aggregateDriverCnaSeasonStats: vi.fn(),
-}));
-
 vi.mock("@/lib/iracing/memberInfoCache", () => ({
     getCachedIracingMemberInfo: vi.fn(),
 }));
@@ -29,7 +24,6 @@ import { GET } from "@/app/api/drivers/[custId]/summary/route";
 import { getCnaUserByCustId } from "@/lib/db/cnaUsers";
 import { getCnaUserProfile } from "@/lib/db/cnaUserProfiles";
 import { getDriverStatsFromResultsByCustId } from "@/lib/drivers/stats";
-import { aggregateDriverCnaSeasonStats, listDriverCnaSeasonStatsFromDb } from "@/lib/drivers/cnaSeasonStats";
 import { getCachedIracingMemberInfo } from "@/lib/iracing/memberInfoCache";
 import { selectSportsCarLicense } from "@/lib/iracing/memberInfo";
 
@@ -45,15 +39,7 @@ describe("app/api/drivers/[custId]/summary route", () => {
         vi.mocked(getCnaUserByCustId).mockResolvedValueOnce(null);
         vi.mocked(getCnaUserProfile).mockResolvedValueOnce(null);
         vi.mocked(getDriverStatsFromResultsByCustId).mockResolvedValueOnce(null);
-        vi.mocked(listDriverCnaSeasonStatsFromDb).mockResolvedValueOnce([]);
         vi.mocked(getCachedIracingMemberInfo).mockResolvedValueOnce(null);
-        vi.mocked(aggregateDriverCnaSeasonStats).mockReturnValueOnce({
-            name: null,
-            points: 0,
-            starts: 0,
-            wins: 0,
-            podiums: 0,
-        });
 
         const res = await GET({} as any, { params: { custId: "123" } });
         expect(res.status).toBe(404);
@@ -65,15 +51,7 @@ describe("app/api/drivers/[custId]/summary route", () => {
         vi.mocked(getCnaUserByCustId).mockResolvedValueOnce({ iracingCustId: 123, iracingName: "IR Name", updatedAt: "t" } as any);
         vi.mocked(getCnaUserProfile).mockResolvedValueOnce({ nickname: "Nick", discord: null, preferredCar: null, carNumber: null } as any);
         vi.mocked(getDriverStatsFromResultsByCustId).mockResolvedValueOnce(null);
-        vi.mocked(listDriverCnaSeasonStatsFromDb).mockResolvedValueOnce([]);
         vi.mocked(getCachedIracingMemberInfo).mockResolvedValueOnce(null);
-        vi.mocked(aggregateDriverCnaSeasonStats).mockReturnValueOnce({
-            name: null,
-            points: 0,
-            starts: 0,
-            wins: 0,
-            podiums: 0,
-        });
 
         const res = await GET({} as any, { params: { custId: "123" } });
         expect(res.status).toBe(200);
@@ -82,30 +60,17 @@ describe("app/api/drivers/[custId]/summary route", () => {
         expect(body.iracingName).toBe("IR Name");
     });
 
-    it("uses DB season stats when available", async () => {
+    it("uses stats when available", async () => {
         vi.mocked(getCnaUserByCustId).mockResolvedValueOnce(null);
         vi.mocked(getCnaUserProfile).mockResolvedValueOnce(null);
-        vi.mocked(getDriverStatsFromResultsByCustId).mockResolvedValueOnce({ points: 1, starts: 1, name: "Public" } as any);
-
-        vi.mocked(listDriverCnaSeasonStatsFromDb).mockResolvedValueOnce([
-            {
-                seriesKey: "gt3open",
-                seasonKey: "26S1",
-                name: "DB Name",
-                points: 100,
-                starts: 3,
-                wins: 1,
-                podiums: 2,
-                updatedAt: "now",
-            },
-        ] as any);
-        vi.mocked(aggregateDriverCnaSeasonStats).mockReturnValueOnce({
+        vi.mocked(getDriverStatsFromResultsByCustId).mockResolvedValueOnce({
             name: "DB Name",
             points: 100,
             starts: 3,
             wins: 1,
             podiums: 2,
-        });
+            seriesSeasons: [{ seriesKey: "gt3open", seasonKey: "26S1", points: 100, starts: 3, wins: 1, podiums: 2, updatedAt: "now" }],
+        } as any);
         vi.mocked(getCachedIracingMemberInfo).mockResolvedValueOnce(null);
 
         const res = await GET({} as any, { params: { custId: "123" } });
@@ -119,15 +84,7 @@ describe("app/api/drivers/[custId]/summary route", () => {
     it("includes cached iRacing sports car iR/SR when present", async () => {
         vi.mocked(getCnaUserByCustId).mockResolvedValueOnce(null);
         vi.mocked(getCnaUserProfile).mockResolvedValueOnce(null);
-        vi.mocked(getDriverStatsFromResultsByCustId).mockResolvedValueOnce({ name: "Public", points: 0, starts: 0 } as any);
-        vi.mocked(listDriverCnaSeasonStatsFromDb).mockResolvedValueOnce([]);
-        vi.mocked(aggregateDriverCnaSeasonStats).mockReturnValueOnce({
-            name: null,
-            points: 0,
-            starts: 0,
-            wins: 0,
-            podiums: 0,
-        });
+        vi.mocked(getDriverStatsFromResultsByCustId).mockResolvedValueOnce({ name: "Public", points: 0, starts: 0, wins: 0, podiums: 0, seriesSeasons: [] } as any);
         vi.mocked(getCachedIracingMemberInfo).mockResolvedValueOnce({
             info: { custId: 123, licenses: [{ category: "sports_car", irating: 1111, safetyRating: 2.5 }] },
             fetchedAt: "f",
@@ -143,4 +100,3 @@ describe("app/api/drivers/[custId]/summary route", () => {
         expect(body.iracing.safetyRating).toBe(2.5);
     });
 });
-

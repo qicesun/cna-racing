@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import LocalTime from "@/components/LocalTime";
 import { getCnaUserByCustId } from "@/lib/db/cnaUsers";
 import { getCnaUserProfile } from "@/lib/db/cnaUserProfiles";
-import { aggregateDriverCnaSeasonStats, listDriverCnaSeasonStatsFromDb } from "@/lib/drivers/cnaSeasonStats";
 import { getDriverStatsFromResultsByCustId } from "@/lib/drivers/stats";
 import { getOrRefreshIracingMemberInfo } from "@/lib/iracing/memberInfoCache";
 import { selectSportsCarLicense } from "@/lib/iracing/memberInfo";
@@ -27,21 +26,18 @@ export default async function DriverProfilePage({ params }: Props) {
     const custId = safeNumber(rawCustId);
     if (!custId) notFound();
 
-    const [cnaUser, profile, stats, dbSeasonStats, memberInfo] = await Promise.all([
+    const [cnaUser, profile, stats, memberInfo] = await Promise.all([
         getCnaUserByCustId(custId).catch(() => null),
         getCnaUserProfile(custId).catch(() => null),
         getDriverStatsFromResultsByCustId(custId).catch(() => null),
-        listDriverCnaSeasonStatsFromDb(custId).catch(() => []),
         // Allow public visits to trigger refresh when cached data is stale.
         getOrRefreshIracingMemberInfo(custId, { refresh: true }).catch(() => null),
     ]);
 
-    if (!cnaUser && !stats && dbSeasonStats.length === 0) notFound();
+    if (!cnaUser && !stats) notFound();
 
-    const dbAgg = aggregateDriverCnaSeasonStats(dbSeasonStats);
-
-    const displayName = profile?.nickname ?? cnaUser?.iracingName ?? stats?.name ?? dbAgg.name ?? "Driver";
-    const iracingName = cnaUser?.iracingName ?? stats?.name ?? dbAgg.name ?? null;
+    const displayName = profile?.nickname ?? cnaUser?.iracingName ?? stats?.name ?? "Driver";
+    const iracingName = cnaUser?.iracingName ?? stats?.name ?? null;
     const sportsCarLicense = memberInfo ? selectSportsCarLicense(memberInfo.info.licenses) : null;
 
     return (
@@ -72,12 +68,12 @@ export default async function DriverProfilePage({ params }: Props) {
                 <div className="mt-8 grid gap-4 md:grid-cols-2">
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                         <div className="text-xs tracking-widest text-zinc-400">CNA STATS</div>
-                        {stats || dbSeasonStats.length ? (
+                        {stats ? (
                             <div className="mt-3 grid gap-2 text-sm text-zinc-200">
-                                <div>积分: {dbSeasonStats.length ? dbAgg.points : stats?.points ?? 0}</div>
-                                <div>参赛次数: {dbSeasonStats.length ? dbAgg.starts : stats?.starts ?? 0}</div>
-                                <div>iRating: {sportsCarLicense?.irating ?? stats?.irating ?? "—"}</div>
-                                <div>SR: {sportsCarLicense?.safetyRating ?? stats?.safetyRating ?? "—"}</div>
+                                <div>积分: {stats.points}</div>
+                                <div>参赛次数: {stats.starts}</div>
+                                <div>iRating: {sportsCarLicense?.irating ?? stats.irating ?? "—"}</div>
+                                <div>SR: {sportsCarLicense?.safetyRating ?? stats.safetyRating ?? "—"}</div>
                                 {stats?.lastRace?.date && (
                                     <div className="text-zinc-300">
                                         最近参赛: {stats.lastRace.series} · {stats.lastRace.track} ·{" "}
